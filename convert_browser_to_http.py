@@ -241,7 +241,27 @@ class HttpMonitor(SyntheticMonitor):
 
 class BrowserMonitor(SyntheticMonitor):
     def __init__(self, tenant, b_monitor_id):
-        super.__init__(tenant, b_monitor_id)       
+        super.__init__(tenant, b_monitor_id)   
+
+    #Should check the browser monitors and if it fails any threshold, returns false, else returns true
+    def __check_eligibility(self):
+        pass
+
+    #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
+    def create_http(self):
+        if self.__check_eligibility():
+            #Do Stuff
+            pass
+        else:
+            return None
+        
+
+
+
+
+
+
+
 
 
 
@@ -269,6 +289,8 @@ else:
     #pprint(look_at_m_windows(args.url))
     #pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).get_json())
     pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).__str__())
+
+#Take Browser Monitor, Convert to HTTP Monitor -> I can probably do that in the class
 
 
 
