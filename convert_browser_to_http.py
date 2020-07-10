@@ -217,11 +217,14 @@ class SyntheticMonitor:
     def get_monitor(self):
         pass
 
-    def __repr__(self):
-        return self.get_monitor().json()
 
     def __str__(self):
         return self.get_monitor().text
+
+    def __repr__(self):
+        return self.get_monitor().json()
+
+
 
 
 class HttpMonitor(SyntheticMonitor):
