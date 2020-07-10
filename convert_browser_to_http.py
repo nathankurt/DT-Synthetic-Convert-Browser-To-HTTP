@@ -172,21 +172,7 @@ class MakeRequest(object):
 
 
 
-## A class that can return    
-class ViewAllIds(MakeRequest):
 
-    def __init__(self, tenant):
-        super().__init__(tenant)
-        
-    @list_ids
-    def brower_monitor_ids(self):
-        return self.get_browser_monitors()
-
-    @list_ids
-    def m_window_ids(self):
-        return self.get_maintenence_windows()
-        
-    
 
 
 
@@ -211,6 +197,9 @@ class MaintenenceWindow:
         pass
         
     def __str__(self):
+        return self.get_window().text
+
+    def __repr__(self):
         return self.get_window().json()
 
     
@@ -228,8 +217,11 @@ class SyntheticMonitor:
     def get_monitor(self):
         pass
 
-    def __str__(self):
+    def __repr__(self):
         return self.get_monitor().json()
+
+    def __str__(self):
+        return self.get_monitor().text
 
 
 class HttpMonitor(SyntheticMonitor):
@@ -241,15 +233,20 @@ class HttpMonitor(SyntheticMonitor):
 
 class BrowserMonitor(SyntheticMonitor):
     def __init__(self, tenant, b_monitor_id):
-        super.__init__(tenant, b_monitor_id)   
+        super.__init__(tenant, b_monitor_id)
+        # self.
 
     #Should check the browser monitors and if it fails any threshold, returns false, else returns true
-    def __check_eligibility(self):
+    def __check_eligibility(self,args):
+        if args.management_zone:
+            pass
+        if args.exclude_tags:
+            pass
         pass
 
     #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
-    def create_http(self):
-        if self.__check_eligibility():
+    def create_http(self,args):
+        if self.__check_eligibility(args):
             #Do Stuff
             pass
         else:
@@ -264,11 +261,10 @@ class BrowserMonitor(SyntheticMonitor):
 
 
 
-
+api = MakeRequest(args.url)
     
 ## List Management Zones and IDs 
 if args.list:
-    api = MakeRequest(args.url)
 
     #pprint(api.get_management_zones().json())
     pprint(api.get_management_zones_ids())
@@ -280,15 +276,14 @@ if args.list:
 
 else:
 
-    view_ids = ViewAllIds(args.url)
-    m_window_ids = view_ids.m_window_ids()
+    m_window_ids = api.get_maintenence_windows_ids()
 
     #print(m_window_ids)
     #print(m_window_ids[0])
 
     #pprint(look_at_m_windows(args.url))
     #pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).get_json())
-    pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).__str__())
+    pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).__repr__())
 
 #Take Browser Monitor, Convert to HTTP Monitor -> I can probably do that in the class
 
