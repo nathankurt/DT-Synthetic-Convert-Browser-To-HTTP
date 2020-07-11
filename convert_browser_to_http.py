@@ -1,3 +1,6 @@
+#TODO Get tags and management zones working at the same time. 
+
+
 import requests
 import json
 import argparse
@@ -19,6 +22,9 @@ parser.add_argument("-l", "--list", help="list the management zone names and IDs
 #If there are certain tags of monitors that you don't want to transfer over, you can go ahead and set those here in a list
 parser.add_argument("--exclude_tags", help="add tags that you want excluded to be transferred in a list seperated by spaces", nargs='*')
 
+parser.add_argument("--include_tags", help="Add tags that you want included to be transferred over as well. If you have a management zone listed, that will take priority")
+parser.add_argument("-f", "--frequency", help="sets the frequency of the new monitors, if not listed it will just use the same times they had from before. insert number as integer in minutes. If value isn't available, it will be rounded up to nearest value")
+
 
 
 
@@ -29,13 +35,14 @@ group1.add_argument("-k", "--keep_old", help="doesn't disable the old browser mo
 
 group1.add_argument("-d", "--delete", help="Deletes the old browser monitor", action="store_true")
 
+#Can only select some of these
 mz_group = parser.add_mutually_exclusive_group()
 
-mz_group.add_argument("-m", "--management_zone", help="Management Zone to select, use the --list feature to get the MZ IDs if you don't know them already")
+mz_group.add_argument("-m", "--management_zone", help="Management Zone to select, use the --list feature to get the MZ IDs if you don't know them already.")
 
-mz_group.add_argument("-a", "--all", help="Selects all browser monitors in the environment, USE WITH CAUTION", action="store_true")
+mz_group.add_argument("-a", "--all", help="Selects all browser monitors in the environment, USE WITH CAUTION will raise exception if it's not listed", action="store_true")
 
-mz_group.add_argument("-s", "--single_monitor", help="Gets a single browser monitor and converts that to an HTTP monitor")
+mz_group.add_argument("-s", "--select_monitor_id", help="Gets a single browser monitor and converts that to an HTTP monitor", nargs='*')
 
 ##TODO Management zone to exclude
 
@@ -76,13 +83,11 @@ class Request(object):
             """""
             IE: super().__init__("GET", endpoint, target='r_id')
                 @GetOneRequest(endpoint="api/config/v1/maintenanceWindows", r_id='self.r_id')  
-            """""
-
-
+            """
 
             url_extras = ""
             if self.target is not None:
-                url_extras = "/" + getattr(obj,self.target)
+                url_extras = getattr(obj,self.target)
         
             
             args = ***REMOVED***
@@ -107,17 +112,31 @@ class Request(object):
 
 
 class GetRequest(Request):
-    def __init__(self, endpoint):
-        super().__init__("GET", endpoint)
+    def __init__(self, endpoint,args=None):
+        #Need to include something for tags and management zone here to create endpoint
+        self.endpoint = endpoint
+        if args:
+            self.endpoint = self.endpoint + "&"
+            if args.management_zone:
+                self.endpoint = self.endpoint + "managementZone=" + args.management_zone
+            if args.include_tags:
+                tag_string = ["tag=" + x + "&" for x in args.include_tags]
+                tag_string = tag_string[:-1]
+                self.endpoint = self.endpoint + tag_string
+
+        super().__init__("GET", self.endpoint)
+
+    
 
 class GetOneRequest(Request):
     def __init__(self, endpoint,r_id):
         super().__init__("GET", endpoint, target='r_id')
 
 
-class GetManagmentZoneRequest(Request):
+class GetManagementZoneRequest(Request):
     def __init__(self, endpoint,mz):
-        super().__init__("GET", endpoint, target='mz')    
+        super().__init__("GET", endpoint, target='mz')
+    
 
 class PostRequest(Request):
     def __init__(self, endpoint):
@@ -132,30 +151,45 @@ class DeleteRequest(Request):
         super().__init__("DELETE", endpoint, target='r_id')
 
 
+
+
+
 #Wrapper function to list the ids when viewing them all. 
 def list_ids(func):
     @functools.wraps(func)
     def wrapper_list_ids(*args, **kwargs):
         return ([element['id'] for element in func(*args,**kwargs).json()['values']])
     return wrapper_list_ids
+
+def list_synthetic_ids(func):
+    @functools.wraps(func)
+    def wrapper_list_ids(*args, **kwargs):
+        return ([element['entityId'] for element in func(*args,**kwargs).json()['monitors']])
+    return wrapper_list_ids
         
 
 class MakeRequest(object):
 
-    def __init__(self,tenant):
+    def __init__(self,tenant, *args):
         self.tenant = tenant
 
-    @GetRequest(endpoint="api/v1/synthetic/monitors?type=BROWSER")
+    @GetRequest(endpoint="api/v1/synthetic/monitors?type=BROWSER", args=args)
     def get_browser_monitors(self):
         pass
 
-    @list_ids
+    @list_synthetic_ids
     def get_browser_monitors_ids(self):
         return self.get_browser_monitors()
 
     @GetRequest(endpoint="api/config/v1/managementZones")
     def get_management_zones(self):
         pass
+
+    # @GetManagementZoneRequest(endpoint="api/v1/synthetic/monitors?type=BROWSER?mangementZone=",mz='mz')
+    # def get_monitors_with_mz(self):
+    #     pass
+
+    
 
         
     @list_ids
@@ -181,12 +215,13 @@ class MakeRequest(object):
   # Look through all of the apps and windows, grab browser monitors that are in the list store it in a dict
   # Look through all of the 
 
+
 class MaintenenceWindow:
     def __init__(self,tenant, r_id, *args, **kwargs):
       self.tenant = tenant
       self.r_id = r_id
     
-    @GetOneRequest(endpoint="api/config/v1/maintenanceWindows", r_id='self.r_id')  
+    @GetOneRequest(endpoint="api/config/v1/maintenanceWindows/", r_id='self.r_id')  
     def get_window(self):
         pass
 
@@ -213,7 +248,7 @@ class SyntheticMonitor:
     # def create_new_monitor(self, b_monitor,*args):
     #     MakeRequest(tenant).get_browser_monitors().json()
 
-    @GetOneRequest(endpoint="/api/v1/synthetic/monitors", r_id='self.r_id')
+    @GetOneRequest(endpoint="/api/v1/synthetic/monitors/", r_id='self.r_id')
     def get_monitor(self):
         pass
 
@@ -225,15 +260,21 @@ class SyntheticMonitor:
         return self.get_monitor().json()
 
 
+# class ManagementZone:
+#     def __init__(self, tenant, mz_id):
+#         self.tenant = tenant
+#         self.mz_id = mz_id
 
+#     @GetOneRequest(endpoint="api/config/v1/management")
+#     def get_management_zone(self):
+    
 
 class HttpMonitor(SyntheticMonitor):
     def __init__(self, tenant, http_monitor_id):
         super.__init__(tenant, http_monitor_id)
 
     
-
-
+    
 class BrowserMonitor(SyntheticMonitor):
     def __init__(self, tenant, b_monitor_id):
         super.__init__(tenant, b_monitor_id)
@@ -244,7 +285,12 @@ class BrowserMonitor(SyntheticMonitor):
         if args.management_zone:
             pass
         if args.exclude_tags:
+            #If Monitor contains tag that is excluded, remove from list
             pass
+        pass
+
+    #should get maintenence windows 
+    def get_maintenence_windows(self):
         pass
 
     #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
@@ -254,6 +300,8 @@ class BrowserMonitor(SyntheticMonitor):
             pass
         else:
             return None
+
+    
         
 
 
@@ -269,24 +317,38 @@ api = MakeRequest(args.url)
 ## List Management Zones and IDs 
 if args.list:
 
-    #pprint(api.get_management_zones().json())
-    pprint(api.get_management_zones_ids())
-
-    #pprint(api.get_browser_monitors().json())
+    pprint(api.get_management_zones().json())
+    #pprint(api.get_management_zones_ids())
     
-
+#Finish and run the script again without doing anything
     
-
+#Check if single monitor was selected
 else:
+    if args.select_monitor_id:
+        #Get list of monitors to create and do stuff with
+        monitor_ids = args.select_monitor_id 
+    
+    elif args.management_zone:
+        #TODO Add something to set management zone tag
+        pprint("It's getting here")
+        pprint(api.get_browser_monitors_ids())
 
-    m_window_ids = api.get_maintenence_windows_ids()
 
-    #print(m_window_ids)
-    #print(m_window_ids[0])
 
-    #pprint(look_at_m_windows(args.url))
-    #pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).get_json())
-    pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).__repr__())
+
+    elif not args.all:
+        #Raise Exception and say you haven't listed anything.
+        print("IN PROGRESS")
+
+
+    # m_window_ids = api.get_maintenence_windows_ids()
+
+    # #print(m_window_ids)
+    # #print(m_window_ids[0])
+
+    # #pprint(look_at_m_windows(args.url))
+    # #pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).get_json())
+    # pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).__repr__())
 
 #Take Browser Monitor, Convert to HTTP Monitor -> I can probably do that in the class
 
