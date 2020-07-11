@@ -8,6 +8,14 @@ from operator import attrgetter
 from pprint import pprint
 import functools
 
+class InputError(Exception):
+    def __init__(self, expression, message):
+        self.expression = expression
+        self.message = message
+
+
+
+
 parser = argparse.ArgumentParser(description="Convert Browser Monitors to HTTP Monitors")
 
 parser.add_argument("url", help="tenant url with SaaS format: https://[tenant_key].live.dynatrace.com OR Managed: https://***REMOVED***your-domain***REMOVED***/e/***REMOVED***your-environment-id")
@@ -22,7 +30,7 @@ parser.add_argument("-l", "--list", help="list the management zone names and IDs
 #If there are certain tags of monitors that you don't want to transfer over, you can go ahead and set those here in a list
 parser.add_argument("--exclude_tags", help="add tags that you want excluded to be transferred in a list seperated by spaces", nargs='*')
 
-parser.add_argument("--include_tags", help="Add tags that you want included to be transferred over as well. If you have a management zone listed, that will take priority")
+parser.add_argument("--include_tags", help="Add tags that you want included to be transferred over as well. If you have a management zone listed, that will take priority and only include things in that management zone with that tag")
 parser.add_argument("-f", "--frequency", help="sets the frequency of the new monitors, if not listed it will just use the same times they had from before. insert number as integer in minutes. If value isn't available, it will be rounded up to nearest value")
 
 
@@ -131,12 +139,7 @@ class GetRequest(Request):
 class GetOneRequest(Request):
     def __init__(self, endpoint,r_id):
         super().__init__("GET", endpoint, target='r_id')
-
-
-class GetManagementZoneRequest(Request):
-    def __init__(self, endpoint,mz):
-        super().__init__("GET", endpoint, target='mz')
-    
+   
 
 class PostRequest(Request):
     def __init__(self, endpoint):
@@ -252,6 +255,9 @@ class SyntheticMonitor:
     def get_monitor(self):
         pass
 
+    def get_tags(self):
+        tags_json = [element['key'] for element in self.__repr__()['tags']]
+        print(tags_json)
 
     def __str__(self):
         return self.get_monitor().text
@@ -271,28 +277,27 @@ class SyntheticMonitor:
 
 class HttpMonitor(SyntheticMonitor):
     def __init__(self, tenant, http_monitor_id):
-        super.__init__(tenant, http_monitor_id)
+        super().__init__(tenant, http_monitor_id)
 
     
     
 class BrowserMonitor(SyntheticMonitor):
     def __init__(self, tenant, b_monitor_id):
-        super.__init__(tenant, b_monitor_id)
+        super().__init__(tenant, b_monitor_id)
         # self.
 
     #Should check the browser monitors and if it fails any threshold, returns false, else returns true
     def __check_eligibility(self,args):
-        if args.management_zone:
-            pass
         if args.exclude_tags:
-            #If Monitor contains tag that is excluded, remove from list
+            #If Monitor contains tag that is in the excluded list, remove from list
             pass
         pass
 
-    #should get maintenence windows 
+    #should get maintenence windows associated with tag
     def get_maintenence_windows(self):
         pass
 
+        
     #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
     def create_http(self,args):
         if self.__check_eligibility(args):
@@ -324,6 +329,7 @@ if args.list:
     
 #Check if single monitor was selected
 else:
+    monitor_ids = []
     if args.select_monitor_id:
         #Get list of monitors to create and do stuff with
         monitor_ids = args.select_monitor_id 
@@ -331,15 +337,20 @@ else:
     elif args.management_zone:
         #TODO Add something to set management zone tag
         pprint("It's getting here")
-        pprint(api.get_browser_monitors_ids())
-
-
-
+        monitor_ids = api.get_browser_monitors_ids()
+        monitor = BrowserMonitor(args.url, monitor_ids[0])
+        monitor.get_tags()
 
     elif not args.all:
         #Raise Exception and say you haven't listed anything.
-        print("IN PROGRESS")
+        raise InputError("Input Error", "Must select filter for monitors, if all make sure to use -a")
+    
+    if monitor_ids == []:
+        raise ValueError("No Monitors in this scope")
+    
 
+
+    
 
     # m_window_ids = api.get_maintenence_windows_ids()
 
