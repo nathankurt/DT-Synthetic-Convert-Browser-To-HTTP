@@ -13,7 +13,7 @@ Convert Browser Monitors to HTTP Monitors
 positional arguments:
   url                   tenant url with SaaS format:
                         https://[tenant_key].live.dynatrace.com OR Managed:
-                        https://***REMOVED***your-domain***REMOVED***/e/***REMOVED***your-environment-id
+                        https://{your-domain}/e/{your-environment-id
   token                 Your API Token generated with access
 
 optional arguments:

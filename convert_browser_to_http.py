@@ -20,7 +20,7 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(description="Convert Browser Monitors to HTTP Monitors")
 
-parser.add_argument("url", help="tenant url with SaaS format: https://[tenant_key].live.dynatrace.com OR Managed: https://***REMOVED***your-domain***REMOVED***/e/***REMOVED***your-environment-id")
+parser.add_argument("url", help="tenant url with SaaS format: https://[tenant_key].live.dynatrace.com OR Managed: https://{your-domain}/e/{your-environment-id")
 
 parser.add_argument("token", type=str, help="Your API Token generated with access")
 
@@ -73,12 +73,12 @@ api_token = args.token
 class Request(object):
     def __init__(self, method, endpoint, target=None):
         self.method = method.upper()
-        self.h = ***REMOVED***
+        self.h = {
             "Content-Type": "application/json;charset=UTF-8", 
-***REMOVED***
-        self.p = ***REMOVED***
+        }
+        self.p = {
           "Api-Token": api_token
-***REMOVED***
+        }
         self.endpoint = endpoint
         #self.extras = extras
         self.target = target
@@ -101,16 +101,16 @@ class Request(object):
                 url_extras = getattr(obj,self.target)
         
             
-            args = ***REMOVED***
+            args = {
               'method': self.method,
-              'url': '***REMOVED******REMOVED***/***REMOVED******REMOVED***'.format(obj.tenant, self.sanitize_endpoint(self.endpoint + url_extras)),
+              'url': '{}/{}'.format(obj.tenant, self.sanitize_endpoint(self.endpoint + url_extras)),
               'headers': self.h,
               'params': self.p
-    ***REMOVED***
+            }
             if payload is not None:
               args['json'] = payload
 
-            logging.info(f"Request URL: ***REMOVED***args['url']***REMOVED***")
+            logging.info(f"Request URL: {args['url']}")
               
             return requests.request(**args)
         return wrapper
@@ -291,54 +291,54 @@ class HttpMonitor(SyntheticMonitor):
 #         self.http_json = self.create_json()
 
 #     def create_json(self):
-#         json_data = '''***REMOVED***
+#         json_data = '''{
 #   "name": "",
 #   "frequencyMin": 1,
 #   "enabled": true,
 #   "type": "HTTP",  
-#   "script": ***REMOVED***
+#   "script": {
 #     "version": "1.0",
 #     "requests": [
-#       ***REMOVED***
+#       {
 #         "description": "Loading of Blah Blah Blah",
 #         "url": "",
 #         "method": "GET",
 #         "requestBody": "",
-#         "configuration": ***REMOVED***
+#         "configuration": {
 #           "acceptAnyCertificate": true,
 #           "followRedirects": true
-# ***REMOVED***,
+#         },
 #         "preProcessingScript": "",
 #         "postProcessingScript": ""
-#       ***REMOVED***
-# ***REMOVED***
-#   ***REMOVED***,
+#       }
+#     ]
+#   },
 #   "locations": [
 #   ],
-#   "anomalyDetection": ***REMOVED***
-#     "outageHandling": ***REMOVED***
+#   "anomalyDetection": {
+#     "outageHandling": {
 #       "globalOutage": true,
 #       "localOutage": false,
-#       "localOutagePolicy": ***REMOVED***
+#       "localOutagePolicy": {
 #         "affectedLocations": 1,
 #         "consecutiveRuns": 3
-#       ***REMOVED***
-#     ***REMOVED***,
-#     "loadingTimeThresholds": ***REMOVED***
+#       }
+#     },
+#     "loadingTimeThresholds": {
 #       "enabled": false,
 #       "thresholds": [
-#         ***REMOVED***
+#         {
 #           "type": "TOTAL",
 #           "valueMs": 10000
-# ***REMOVED***
-#   ***REMOVED***
-#     ***REMOVED***
-#   ***REMOVED***,
+#         }
+#       ]
+#     }
+#   },
 #   "tags": [],  
 #   "manuallyAssignedApps": [
 #   ],
 #   "automaticallyAssignedApps": []
-# ***REMOVED***'''
+# }'''
 
 #         json_dict = json.load(json_data)
 #         json_dict["tags"] = self.b_json["tags"]
@@ -358,56 +358,56 @@ class BrowserMonitor(SyntheticMonitor):
     #Should check the browser monitors and if it fails any threshold, returns false, else returns true
     
     def create_http_json(self):
-        json_data = '''***REMOVED***
+        json_data = '''{
   "name": "",
   "frequencyMin": 1,
   "enabled": true,
   "type": "HTTP",  
-  "script": ***REMOVED***
+  "script": {
     "version": "1.0",
     "requests": [
-      ***REMOVED***
+      {
         "description": "Loading of Blah Blah Blah",
         "url": "",
         "method": "GET",
         "requestBody": "",
-        "validation": ***REMOVED***
+        "validation": {
             "rules": []
-***REMOVED***,
-        "configuration": ***REMOVED***
+        },
+        "configuration": {
           "acceptAnyCertificate": true,
           "followRedirects": true
-***REMOVED***,
+        },
         "preProcessingScript": "",
         "postProcessingScript": ""
-      ***REMOVED***
-***REMOVED***
-  ***REMOVED***,
+      }
+    ]
+  },
   "locations": [
   ],
-  "anomalyDetection": ***REMOVED***
-    "outageHandling": ***REMOVED***
+  "anomalyDetection": {
+    "outageHandling": {
       "globalOutage": true,
       "localOutage": false,
-      "localOutagePolicy": ***REMOVED***
+      "localOutagePolicy": {
         "affectedLocations": 1,
         "consecutiveRuns": 3
-      ***REMOVED***
-    ***REMOVED***,
-    "loadingTimeThresholds": ***REMOVED***
+      }
+    },
+    "loadingTimeThresholds": {
       "enabled": false,
       "thresholds": [
-        ***REMOVED***
+        {
           "type": "TOTAL",
           "valueMs": 10000
-***REMOVED***
-  ***REMOVED***
-    ***REMOVED***
-  ***REMOVED***,
+        }
+      ]
+    }
+  },
   "tags": [],  
   "manuallyAssignedApps": [],
   "automaticallyAssignedApps": []
-***REMOVED***'''
+}'''
 
         json_dict = json.loads(json_data)
         #transfers tags over
@@ -425,7 +425,7 @@ class BrowserMonitor(SyntheticMonitor):
         #TODO need locations still
         #TODO need authetnication still
         for request in json_dict["script"]["requests"]:
-            request["description"] = f"Loading of ***REMOVED***request['url']***REMOVED***"
+            request["description"] = f"Loading of {request['url']}"
 
 
 
@@ -511,7 +511,7 @@ else:
 
 
         #TODO Make this new HTTP Monitor
-        logging.info(f"Creating Monitor from Old Browser Monitor ID: ***REMOVED***b_id***REMOVED*** New Browser Monitor ID: ***REMOVED***b_id***REMOVED***")
+        logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {b_id}")
 
 
 
