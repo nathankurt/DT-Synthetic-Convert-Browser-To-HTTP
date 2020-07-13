@@ -118,7 +118,9 @@ class Request(object):
         return endpoint
 
 
-
+"""
+A Subclass of the Request class and used only for get requests, Also lets you add tags and other things if needed. 
+"""
 class GetRequest(Request):
     def __init__(self, endpoint,args=None):
         #Need to include something for tags and management zone here to create endpoint
@@ -129,6 +131,7 @@ class GetRequest(Request):
                 self.endpoint = self.endpoint + "managementZone=" + args.management_zone
             if args.include_tags:
                 tag_string = ["tag=" + x + "&" for x in args.include_tags]
+                #Removes the last & from the end of the list because it's not needed
                 tag_string = tag_string[:-1]
                 self.endpoint = self.endpoint + tag_string
 
@@ -187,12 +190,6 @@ class MakeRequest(object):
     @GetRequest(endpoint="api/config/v1/managementZones")
     def get_management_zones(self):
         pass
-
-    # @GetManagementZoneRequest(endpoint="api/v1/synthetic/monitors?type=BROWSER?mangementZone=",mz='mz')
-    # def get_monitors_with_mz(self):
-    #     pass
-
-    
 
         
     @list_ids
@@ -284,7 +281,6 @@ class HttpMonitor(SyntheticMonitor):
 class BrowserMonitor(SyntheticMonitor):
     def __init__(self, tenant, b_monitor_id):
         super().__init__(tenant, b_monitor_id)
-        # self.
 
     #Should check the browser monitors and if it fails any threshold, returns false, else returns true
     def __check_eligibility(self,args):
@@ -305,15 +301,6 @@ class BrowserMonitor(SyntheticMonitor):
             pass
         else:
             return None
-
-    
-        
-
-
-
-
-
-
 
 
 
@@ -336,10 +323,12 @@ else:
     
     elif args.management_zone:
         #TODO Add something to set management zone tag
-        pprint("It's getting here")
+        # pprint("It's getting here")
         monitor_ids = api.get_browser_monitors_ids()
-        monitor = BrowserMonitor(args.url, monitor_ids[0])
-        monitor.get_tags()
+        
+        # monitor = BrowserMonitor(args.url, monitor_ids[0])
+        # monitor.get_tags()
+
 
     elif not args.all:
         #Raise Exception and say you haven't listed anything.
