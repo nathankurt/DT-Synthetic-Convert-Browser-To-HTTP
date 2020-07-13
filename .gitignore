@@ -138,10 +138,10 @@ dmypy.json
 
 ### VisualStudioCode ###
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/extensions.json
 *.code-workspace
 
 ### VisualStudioCode Patch ###
@@ -149,3 +149,5 @@ dmypy.json
 .history
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python
+
+.
