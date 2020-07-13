@@ -1,8 +1,9 @@
 # Convert Dynatrace Browser Monitors to Public HTTP Monitor
 
-usage: convert_browser_to_http.py [-h] [-q] [-l]
-                                  [--exclude_tags [EXCLUDE_TAGS [EXCLUDE_TAGS ...]]]
-                                  [--include_tags INCLUDE_TAGS] [-f FREQUENCY]
+
+```
+usage: convert_browser_to_http.py [-h] [-q] [-l] [--exclude_tags EXCLUDE_TAGS]
+                                  [--include_tag INCLUDE_TAG] [-f FREQUENCY]
                                   [-k KEEP_OLD | -d]
                                   [-m MANAGEMENT_ZONE | -a | -s [SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]]]
                                   url token
@@ -19,13 +20,16 @@ optional arguments:
   -h, --help            show this help message and exit
   -q, --quiet           no output printed to the terminal
   -l, --list            list the management zone names and IDs
-  --exclude_tags [EXCLUDE_TAGS [EXCLUDE_TAGS ...]]
-                        add tags that you want excluded to be transferred in a
-                        list seperated by spaces
-  --include_tags INCLUDE_TAGS
+  --exclude_tags EXCLUDE_TAGS
+                        add tags that you want excluded from being transferred
+                        over, each tag you want excluded use the arg again
+  --include_tag INCLUDE_TAG
                         Add tags that you want included to be transferred over
                         as well. If you have a management zone listed, that
-                        will take priority
+                        will take priority and only include things in that
+                        management zone. Multiple tags require multiple args
+                        added. For Example: --include_tag Retail Advisor
+                        --include_tag Retail
   -f FREQUENCY, --frequency FREQUENCY
                         sets the frequency of the new monitors, if not listed
                         it will just use the same times they had from before.
@@ -43,3 +47,5 @@ optional arguments:
   -s [SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]], --select_monitor_id [SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]]
                         Gets a single browser monitor and converts that to an
                         HTTP monitor
+
+```

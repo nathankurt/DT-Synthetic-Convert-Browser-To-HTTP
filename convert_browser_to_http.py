@@ -1,12 +1,13 @@
 #TODO Get tags and management zones working at the same time. 
-
+#TODO Add support for context and contextless keys
 
 import requests
 import json
 import argparse
 from operator import attrgetter
-from pprint import pprint
+from pprint import pprint, pformat
 import functools
+import logging
 
 class InputError(Exception):
     def __init__(self, expression, message):
@@ -14,7 +15,8 @@ class InputError(Exception):
         self.message = message
 
 
-
+#TODO Add filename to logger
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(description="Convert Browser Monitors to HTTP Monitors")
 
@@ -28,9 +30,10 @@ parser.add_argument("-q", "--quiet", help="no output printed to the terminal", a
 parser.add_argument("-l", "--list", help="list the management zone names and IDs", action="store_true")
 
 #If there are certain tags of monitors that you don't want to transfer over, you can go ahead and set those here in a list
-parser.add_argument("--exclude_tags", help="add tags that you want excluded to be transferred in a list seperated by spaces", nargs='*')
+parser.add_argument("--exclude_tags", help="add tags that you want excluded from being transferred over, each tag you want excluded use the arg again", action="append")
 
-parser.add_argument("--include_tags", help="Add tags that you want included to be transferred over as well. If you have a management zone listed, that will take priority and only include things in that management zone with that tag")
+parser.add_argument("--include_tag", help="Add tags that you want included to be transferred over as well. If you have a management zone listed, that will take priority and only include things in that management zone. Multiple tags require multiple args added. \
+    For Example: --include_tag Retail Advisor --include_tag Retail", action="append")
 parser.add_argument("-f", "--frequency", help="sets the frequency of the new monitors, if not listed it will just use the same times they had from before. insert number as integer in minutes. If value isn't available, it will be rounded up to nearest value")
 
 
@@ -107,7 +110,7 @@ class Request(object):
             if payload is not None:
               args['json'] = payload
 
-            print(args['url'])
+            logging.info(f"Request URL: ***REMOVED***args['url']***REMOVED***")
               
             return requests.request(**args)
         return wrapper
@@ -129,10 +132,15 @@ class GetRequest(Request):
             self.endpoint = self.endpoint + "&"
             if args.management_zone:
                 self.endpoint = self.endpoint + "managementZone=" + args.management_zone
-            if args.include_tags:
-                tag_string = ["tag=" + x + "&" for x in args.include_tags]
-                #Removes the last & from the end of the list because it's not needed
+            if args.include_tag:
+                tag_string = "&"
+                for x in args.include_tag:
+                    tag_string = tag_string + "tag=" + x.replace(" ", "%20") + "&"
                 tag_string = tag_string[:-1]
+
+                #["tag=" + x.replace(" ", "%20") + "&" for x in args.include_tag]
+                #Removes the last & from the end of the list because it's not needed
+
                 self.endpoint = self.endpoint + tag_string
 
         super().__init__("GET", self.endpoint)
@@ -190,7 +198,6 @@ class MakeRequest(object):
     @GetRequest(endpoint="api/config/v1/managementZones")
     def get_management_zones(self):
         pass
-
         
     @list_ids
     def get_management_zones_ids(self):
@@ -203,6 +210,8 @@ class MakeRequest(object):
     @list_ids
     def get_maintenence_windows_ids(self):
         return self.get_maintenence_windows()
+
+    
 
 
 
@@ -220,6 +229,7 @@ class MaintenenceWindow:
     def __init__(self,tenant, r_id, *args, **kwargs):
       self.tenant = tenant
       self.r_id = r_id
+      self.window_json = self.get_window().json()
     
     @GetOneRequest(endpoint="api/config/v1/maintenanceWindows/", r_id='self.r_id')  
     def get_window(self):
@@ -235,7 +245,8 @@ class MaintenenceWindow:
         return self.get_window().text
 
     def __repr__(self):
-        return self.get_window().json()
+        return pformat(self.get_window().json())
+
 
     
 
@@ -243,6 +254,7 @@ class SyntheticMonitor:
     def __init__(self, tenant,r_id):
         self.tenant = tenant
         self.r_id = r_id
+        self.b_json = self.get_monitor().json()
 
     
     # def create_new_monitor(self, b_monitor,*args):
@@ -253,14 +265,15 @@ class SyntheticMonitor:
         pass
 
     def get_tags(self):
-        tags_json = [element['key'] for element in self.__repr__()['tags']]
-        print(tags_json)
+        tags_json = [element['key'] for element in self.b_json['tags']]
+        return tags_json
 
     def __str__(self):
         return self.get_monitor().text
 
     def __repr__(self):
-        return self.get_monitor().json()
+        return pformat(self.get_monitor().json())
+
 
 
 # class ManagementZone:
@@ -275,19 +288,148 @@ class SyntheticMonitor:
 class HttpMonitor(SyntheticMonitor):
     def __init__(self, tenant, http_monitor_id):
         super().__init__(tenant, http_monitor_id)
+#         self.http_json = self.create_json()
+
+#     def create_json(self):
+#         json_data = '''***REMOVED***
+#   "name": "",
+#   "frequencyMin": 1,
+#   "enabled": true,
+#   "type": "HTTP",  
+#   "script": ***REMOVED***
+#     "version": "1.0",
+#     "requests": [
+#       ***REMOVED***
+#         "description": "Loading of Blah Blah Blah",
+#         "url": "",
+#         "method": "GET",
+#         "requestBody": "",
+#         "configuration": ***REMOVED***
+#           "acceptAnyCertificate": true,
+#           "followRedirects": true
+# ***REMOVED***,
+#         "preProcessingScript": "",
+#         "postProcessingScript": ""
+#       ***REMOVED***
+# ***REMOVED***
+#   ***REMOVED***,
+#   "locations": [
+#   ],
+#   "anomalyDetection": ***REMOVED***
+#     "outageHandling": ***REMOVED***
+#       "globalOutage": true,
+#       "localOutage": false,
+#       "localOutagePolicy": ***REMOVED***
+#         "affectedLocations": 1,
+#         "consecutiveRuns": 3
+#       ***REMOVED***
+#     ***REMOVED***,
+#     "loadingTimeThresholds": ***REMOVED***
+#       "enabled": false,
+#       "thresholds": [
+#         ***REMOVED***
+#           "type": "TOTAL",
+#           "valueMs": 10000
+# ***REMOVED***
+#   ***REMOVED***
+#     ***REMOVED***
+#   ***REMOVED***,
+#   "tags": [],  
+#   "manuallyAssignedApps": [
+#   ],
+#   "automaticallyAssignedApps": []
+# ***REMOVED***'''
+
+#         json_dict = json.load(json_data)
+#         json_dict["tags"] = self.b_json["tags"]
+#         json_dict["manuallyAssignedApps"] = self.b_json["manuallyAssignedApps"]
+#         json_dict["anomalyDetection"] = self.b_json["anomolyDetection"]
+
+
+
 
     
     
 class BrowserMonitor(SyntheticMonitor):
     def __init__(self, tenant, b_monitor_id):
         super().__init__(tenant, b_monitor_id)
+    
 
     #Should check the browser monitors and if it fails any threshold, returns false, else returns true
-    def __check_eligibility(self,args):
-        if args.exclude_tags:
-            #If Monitor contains tag that is in the excluded list, remove from list
-            pass
-        pass
+    
+    def create_http_json(self):
+        json_data = '''***REMOVED***
+  "name": "",
+  "frequencyMin": 1,
+  "enabled": true,
+  "type": "HTTP",  
+  "script": ***REMOVED***
+    "version": "1.0",
+    "requests": [
+      ***REMOVED***
+        "description": "Loading of Blah Blah Blah",
+        "url": "",
+        "method": "GET",
+        "requestBody": "",
+        "validation": ***REMOVED***
+            "rules": []
+***REMOVED***,
+        "configuration": ***REMOVED***
+          "acceptAnyCertificate": true,
+          "followRedirects": true
+***REMOVED***,
+        "preProcessingScript": "",
+        "postProcessingScript": ""
+      ***REMOVED***
+***REMOVED***
+  ***REMOVED***,
+  "locations": [
+  ],
+  "anomalyDetection": ***REMOVED***
+    "outageHandling": ***REMOVED***
+      "globalOutage": true,
+      "localOutage": false,
+      "localOutagePolicy": ***REMOVED***
+        "affectedLocations": 1,
+        "consecutiveRuns": 3
+      ***REMOVED***
+    ***REMOVED***,
+    "loadingTimeThresholds": ***REMOVED***
+      "enabled": false,
+      "thresholds": [
+        ***REMOVED***
+          "type": "TOTAL",
+          "valueMs": 10000
+***REMOVED***
+  ***REMOVED***
+    ***REMOVED***
+  ***REMOVED***,
+  "tags": [],  
+  "manuallyAssignedApps": [],
+  "automaticallyAssignedApps": []
+***REMOVED***'''
+
+        json_dict = json.loads(json_data)
+        #transfers tags over
+        json_dict["tags"] = self.b_json["tags"]
+        #transfers apps over
+        json_dict["manuallyAssignedApps"] = self.b_json["manuallyAssignedApps"]
+        json_dict["automaticallyAssignedApps"] = self.b_json["manuallyAssignedApps"]
+
+        #transfers problem detection rules over
+        json_dict["anomalyDetection"] = self.b_json["anomolyDetection"]
+
+
+        #checks locations But does not check if location is also available publicly. 
+        json_dict["locations"] = self.b_json["locations"]
+        #TODO need locations still
+        #TODO need authetnication still
+        for request in json_dict["script"]["requests"]:
+            request["description"] = f"Loading of ***REMOVED***request['url']***REMOVED***"
+
+
+
+        return json_dict
 
     #should get maintenence windows associated with tag
     def get_maintenence_windows(self):
@@ -296,35 +438,33 @@ class BrowserMonitor(SyntheticMonitor):
         
     #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
     def create_http(self,args):
-        if self.__check_eligibility(args):
-            #Do Stuff
-            pass
-        else:
-            return None
+        pass
+        
 
 
 
+
+#create a make request object so can make them more easily
 api = MakeRequest(args.url)
     
 ## List Management Zones and IDs 
 if args.list:
 
     pprint(api.get_management_zones().json())
-    #pprint(api.get_management_zones_ids())
     
 #Finish and run the script again without doing anything
     
 #Check if single monitor was selected
 else:
-    monitor_ids = []
+    browser_monitor_ids = []
     if args.select_monitor_id:
         #Get list of monitors to create and do stuff with
-        monitor_ids = args.select_monitor_id 
+        browser_monitor_ids = args.select_monitor_id 
     
     elif args.management_zone:
         #TODO Add something to set management zone tag
         # pprint("It's getting here")
-        monitor_ids = api.get_browser_monitors_ids()
+        browser_monitor_ids = api.get_browser_monitors_ids()
         
         # monitor = BrowserMonitor(args.url, monitor_ids[0])
         # monitor.get_tags()
@@ -332,10 +472,69 @@ else:
 
     elif not args.all:
         #Raise Exception and say you haven't listed anything.
+        logging.error("Input Error: Must Select Filter for monitors, if you want all monitors, make sure to use -a")
         raise InputError("Input Error", "Must select filter for monitors, if all make sure to use -a")
     
-    if monitor_ids == []:
+    #Empty list so raise exception
+    if browser_monitor_ids == []:
+        logging.error("Input Error: No Monitors in this scope")
         raise ValueError("No Monitors in this scope")
+
+    
+    for b_id in browser_monitor_ids:
+        monitor_obj = BrowserMonitor(args.url, b_id)
+        pprint(monitor_obj.b_json)
+        b_monitor_type = monitor_obj.b_json["script"]["type"]
+        #A browser clickpath monitor which isn't supported
+        if b_monitor_type != "availability":
+            monitor_obj = ""
+            break
+        
+        #Check if webform authentication, don't transfer because not supported.
+        for event in monitor_obj.b_json["script"]["events"]:
+            #check if authentication in event, if it is, make sure it's not webform
+            if "authentication" in event:
+                if event["authentication"]["type"] is "webform":
+                    logging.warn("Authentication Type is Webform, Skipping Monitor")
+                    break
+        
+            
+        
+
+## THINGS I DON"T WANT
+# Entity ID: 
+# Created From
+# configuration: Device
+
+        
+        
+
+
+        #TODO Make this new HTTP Monitor
+        logging.info(f"Creating Monitor from Old Browser Monitor ID: ***REMOVED***b_id***REMOVED*** New Browser Monitor ID: ***REMOVED***b_id***REMOVED***")
+
+
+
+
+
+        
+        
+
+
+
+
+
+        
+        
+        
+        
+
+
+
+
+    
+    
+
     
 
 
