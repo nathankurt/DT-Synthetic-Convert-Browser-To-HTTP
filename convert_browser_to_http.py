@@ -410,7 +410,7 @@ class BrowserMonitor(SyntheticMonitor):
                 for j in range(len(val["validate"])):
                     #checks if there are any rules to add other than the fail if greater than 400 error. Not val because they use failiffound vs the other is passiffound. so opposite. 
                     pattern_regex = "regexConstraint" if val["validate"][j]["isRegex"] else "patternConstraint"
-                    json_dict["script"]["requests"][i]["validation"]["rules"][j+1] = {"value": val["validate"][j]["match"], "passIfFound": not val["validate"][j]["failIfFound"], "type": pattern_regex}
+                    json_dict["script"]["requests"][i]["validation"]["rules"].append({"value": val["validate"][j]["match"], "passIfFound": not val["validate"][j]["failIfFound"], "type": pattern_regex})
                     #type is pattern match if not regex, else it's regexConstraint
 
 
@@ -432,11 +432,6 @@ class BrowserMonitor(SyntheticMonitor):
         #Gets the description and makes it "loading of url"
         for request in json_dict["script"]["requests"]:
             request["description"] = f"Loading of {request['url']}"
-            
-
-
-
-
         
 
 
@@ -451,11 +446,7 @@ class BrowserMonitor(SyntheticMonitor):
 
             
 
-
-
-
-
-        
+    
     #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
     def create_http(self,args):
         pass
@@ -505,6 +496,7 @@ if args.list:
     
 #Check if single monitor was selected
 else:
+    b_monitor_http_monitor_dict = {}
     browser_monitor_ids = []
     if args.select_monitor_id:
         #Get list of monitors to create and do stuff with
@@ -552,24 +544,6 @@ else:
             if not loc_list:
                 logging.error(f"Monitor Locations You Chose are either ineligible or don't exist, check ids that do exist by using the --list command")
                 break
-
-
-
-            # loc_count = 0
-            # for location in monitor_obj.b_json["locations"]:
-            #     if location in http_locations["entityId"]:
-            #         loc_count += 1
-            #     else:
-            #         logging.warn(f"Browser Monitor {b_id} using location {location} which isn't supported yet for HTTP Monitors")
-            # if loc_count == 0:
-            #     logging.error(f"Browser Monitor {monitor_obj.b_json['name']}(ID: {b_id}) Doesn't have any locations set that are available for public http monitors, you can set a location in the arguments")
-            #     break
-        #else:
-
-
-
-        
-
         
 
 
@@ -587,8 +561,24 @@ else:
         
         pprint(monitor_obj.create_http_json(args, loc_list))
 
+        #TODO Make this new HTTP Monitor
+        logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {b_id}")
+
+    
+
+    m_windows = api.get_maintenence_windows_ids()
+
+    for item in m_windows:
+        m_window_obj = MaintenenceWindow(args.url, item)
+        #for each item in maintenence window look through and if it exists as a key in the list, add the http monitor to the new _json
+        for m_id in m_window_obj.window_json["scope"]["entities"]:
+            if m_id in b_monitor_http_monitor_dict.keys():
+                m_window_obj.window_json["scope"]["entities"].append(b_monitor_http_monitor_dict[m_id])
+                logging.info(f"Adding HTTP Monitor {b_monitor_http_monitor_dict[m_id]} to Maintenence Window {item}")
+                pprint(m_window_obj.window_json)
+
+
         
-            
         
 
 ## THINGS I DON"T WANT
@@ -596,13 +586,8 @@ else:
 # Created From
 # configuration: Device
 
+
         
-        
-
-
-        #TODO Make this new HTTP Monitor
-        logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {b_id}")
-
 
 
 
