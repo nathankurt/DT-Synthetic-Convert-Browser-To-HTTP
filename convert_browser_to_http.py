@@ -1,5 +1,8 @@
-#TODO Get tags and management zones working at the same time. 
-#TODO Add support for context and contextless keys
+"""
+Created by: Nate Kurt
+Last Modified: 7/14/2020
+
+"""
 
 import requests
 import json
@@ -8,6 +11,7 @@ from operator import attrgetter
 from pprint import pprint, pformat
 import functools
 import logging
+from itertools import chain
 
 class InputError(Exception):
     def __init__(self, expression, message):
@@ -20,15 +24,16 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(description="Convert Browser Monitors to HTTP Monitors")
 
-parser.add_argument("url", help="tenant url with SaaS format: https://[tenant_key].live.dynatrace.com OR Managed: https://{your-domain}/e/{your-environment-id")
+parser.add_argument("url", help="tenant url with SaaS format: https://[tenant_key].live.dynatrace.com OR Managed: https://{your-domain}/e/{your-environment-id}")
 
 parser.add_argument("token", type=str, help="Your API Token generated with access")
 
 parser.add_argument("-q", "--quiet", help="no output printed to the terminal", action="store_true")
 
 #Lists the management zones in case you don't know the ID's to hit. 
-parser.add_argument("-l", "--list", help="list the management zone names and IDs", action="store_true")
+parser.add_argument("-l", "--list", help="list the management zone names and IDs, as well as HTTP location names and IDs", action="store_true")
 
+parser.add_argument("--location", nargs="+", action="append", help="Add locations that you would like to use for ")
 #If there are certain tags of monitors that you don't want to transfer over, you can go ahead and set those here in a list
 parser.add_argument("--exclude_tags", help="add tags that you want excluded from being transferred over, each tag you want excluded use the arg again", action="append")
 
@@ -53,7 +58,7 @@ mz_group.add_argument("-m", "--management_zone", help="Management Zone to select
 
 mz_group.add_argument("-a", "--all", help="Selects all browser monitors in the environment, USE WITH CAUTION will raise exception if it's not listed", action="store_true")
 
-mz_group.add_argument("-s", "--select_monitor_id", help="Gets a single browser monitor and converts that to an HTTP monitor", nargs='*')
+mz_group.add_argument("-s", "--select_monitor_id", help="Gets a single browser monitor and converts that to an HTTP monitor. Can add multiple Ids by listing with a space inbetween or calling the -s again ", nargs='+', action="append")
 
 ##TODO Management zone to exclude
 
@@ -62,7 +67,7 @@ mz_group.add_argument("-s", "--select_monitor_id", help="Gets a single browser m
 # Grab the arguments 
 args = parser.parse_args()
 
-tenant = args.url
+# tenant = args.url
 
 # if args.mz
 # management_zone = args.m
@@ -211,6 +216,11 @@ class MakeRequest(object):
     def get_maintenence_windows_ids(self):
         return self.get_maintenence_windows()
 
+    @GetRequest(endpoint="api/v1/synthetic/locations")
+    def get_location_info(self):
+        pass
+
+
     
 
 
@@ -288,62 +298,6 @@ class SyntheticMonitor:
 class HttpMonitor(SyntheticMonitor):
     def __init__(self, tenant, http_monitor_id):
         super().__init__(tenant, http_monitor_id)
-#         self.http_json = self.create_json()
-
-#     def create_json(self):
-#         json_data = '''{
-#   "name": "",
-#   "frequencyMin": 1,
-#   "enabled": true,
-#   "type": "HTTP",  
-#   "script": {
-#     "version": "1.0",
-#     "requests": [
-#       {
-#         "description": "Loading of Blah Blah Blah",
-#         "url": "",
-#         "method": "GET",
-#         "requestBody": "",
-#         "configuration": {
-#           "acceptAnyCertificate": true,
-#           "followRedirects": true
-#         },
-#         "preProcessingScript": "",
-#         "postProcessingScript": ""
-#       }
-#     ]
-#   },
-#   "locations": [
-#   ],
-#   "anomalyDetection": {
-#     "outageHandling": {
-#       "globalOutage": true,
-#       "localOutage": false,
-#       "localOutagePolicy": {
-#         "affectedLocations": 1,
-#         "consecutiveRuns": 3
-#       }
-#     },
-#     "loadingTimeThresholds": {
-#       "enabled": false,
-#       "thresholds": [
-#         {
-#           "type": "TOTAL",
-#           "valueMs": 10000
-#         }
-#       ]
-#     }
-#   },
-#   "tags": [],  
-#   "manuallyAssignedApps": [
-#   ],
-#   "automaticallyAssignedApps": []
-# }'''
-
-#         json_dict = json.load(json_data)
-#         json_dict["tags"] = self.b_json["tags"]
-#         json_dict["manuallyAssignedApps"] = self.b_json["manuallyAssignedApps"]
-#         json_dict["anomalyDetection"] = self.b_json["anomolyDetection"]
 
 
 
@@ -357,7 +311,7 @@ class BrowserMonitor(SyntheticMonitor):
 
     #Should check the browser monitors and if it fails any threshold, returns false, else returns true
     
-    def create_http_json(self):
+    def create_http_json(self,frequency=None):
         json_data = '''{
   "name": "",
   "frequencyMin": 1,
@@ -410,30 +364,72 @@ class BrowserMonitor(SyntheticMonitor):
 }'''
 
         json_dict = json.loads(json_data)
+
+        json_dict["name"] = self.b_json["name"] + " Now HTTP"
         #transfers tags over
         json_dict["tags"] = self.b_json["tags"]
         #transfers apps over
         json_dict["manuallyAssignedApps"] = self.b_json["manuallyAssignedApps"]
         json_dict["automaticallyAssignedApps"] = self.b_json["manuallyAssignedApps"]
+        
+        
+        #If argument set for frequency then use that value, otherwise use the default value of the monitor. 
+        if frequency:
+            json_dict["frequencyMin"] = frequency
+        else:
+            json_dict["frequencyMin"] = self.b_json["frequencyMin"]
+
 
         #transfers problem detection rules over
-        json_dict["anomalyDetection"] = self.b_json["anomolyDetection"]
+        json_dict["anomalyDetection"] = self.b_json["anomalyDetection"]
 
 
         #checks locations But does not check if location is also available publicly. 
         json_dict["locations"] = self.b_json["locations"]
         #TODO need locations still
+        
         #TODO need authetnication still
+
+        #Gets the description and makes it "loading of url"
         for request in json_dict["script"]["requests"]:
             request["description"] = f"Loading of {request['url']}"
+        
+        for i in range(len(self.b_json["script"]["events"])):
+            val = self.b_json["script"]["events"][i]
+            if "authentication" in val:
+                json_dict["script"]["requests"][i]["authentication"] = {"type": "", "credentials": ""}
+                #http monitors use BASIC_AUTHENTICATION while browser monitors just use "basic"
+                if val["authentication"]["type"] == "basic":
+                    json_dict["script"]["requests"][i]["authentication"]["type"] = "BASIC_AUTHENTICATION"
+                
+                #if it's something other than webform and basic auth, maybe we'll support it?
+                else:
+                    json_dict["script"]["requests"][i]["authentication"]["type"] = val["authentication"]["type"]
+
+                #HTTP Uses "credentials: val" instead of "credential {id : val}"
+                json_dict["script"]["requests"][i]["authentication"]["credentials"] = val["authentication"]["credential"]["id"]
+
+            
+            
 
 
 
-        return json_dict
+
+        
+
+
+
+
+        return json.dumps(json_dict)
 
     #should get maintenence windows associated with tag
     def get_maintenence_windows(self):
         pass
+
+
+
+
+
 
         
     #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
@@ -441,6 +437,14 @@ class BrowserMonitor(SyntheticMonitor):
         pass
         
 
+#gets a list of http locations with names and entityIds
+def get_http_locations(locations):
+    dict_list = []
+    for location in locations:
+        #check if the location can support public http and if it can't, then oops
+        if "HTTP" in location["capabilities"] and location["status"] == "ENABLED":
+            dict_list.append({"name": location["name"], "entityId": location["entityId"]})
+    return dict_list
 
 
 
@@ -449,8 +453,14 @@ api = MakeRequest(args.url)
     
 ## List Management Zones and IDs 
 if args.list:
+    pprint("HTTP Synthetic Monitor Locations: ")
+    locations = api.get_location_info().json()
+    pprint(get_http_locations(locations))
 
+    pprint("\n\nManagement Zones List: ")
     pprint(api.get_management_zones().json())
+    
+    
     
 #Finish and run the script again without doing anything
     
@@ -459,7 +469,8 @@ else:
     browser_monitor_ids = []
     if args.select_monitor_id:
         #Get list of monitors to create and do stuff with
-        browser_monitor_ids = args.select_monitor_id 
+        #flatten list and combine 
+        browser_monitor_ids = list(chain.from_iterable(args.select_monitor_id))
     
     elif args.management_zone:
         #TODO Add something to set management zone tag
@@ -483,7 +494,7 @@ else:
     
     for b_id in browser_monitor_ids:
         monitor_obj = BrowserMonitor(args.url, b_id)
-        pprint(monitor_obj.b_json)
+        # pprint(monitor_obj.b_json)
         b_monitor_type = monitor_obj.b_json["script"]["type"]
         #A browser clickpath monitor which isn't supported
         if b_monitor_type != "availability":
@@ -497,6 +508,12 @@ else:
                 if event["authentication"]["type"] is "webform":
                     logging.warn("Authentication Type is Webform, Skipping Monitor")
                     break
+
+        #TODO Locations 
+        #location does not exist 
+        
+        pprint(monitor_obj.create_http_json())
+
         
             
         
