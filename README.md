@@ -2,10 +2,12 @@
 
 
 ```
-usage: convert_browser_to_http.py [-h] [-q] [-l] [--exclude_tags EXCLUDE_TAGS]
+usage: convert_browser_to_http.py [-h] [-q] [-l]
+                                  [--location LOCATION [LOCATION ...]]
+                                  [--exclude_tags EXCLUDE_TAGS]
                                   [--include_tag INCLUDE_TAG] [-f FREQUENCY]
                                   [-k KEEP_OLD | -d]
-                                  [-m MANAGEMENT_ZONE | -a | -s [SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]]]
+                                  [-m MANAGEMENT_ZONE | -a | -s SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]]
                                   url token
 
 Convert Browser Monitors to HTTP Monitors
@@ -13,13 +15,16 @@ Convert Browser Monitors to HTTP Monitors
 positional arguments:
   url                   tenant url with SaaS format:
                         https://[tenant_key].live.dynatrace.com OR Managed:
-                        https://{your-domain}/e/{your-environment-id
+                        https://{your-domain}/e/{your-environment-id}
   token                 Your API Token generated with access
 
 optional arguments:
   -h, --help            show this help message and exit
   -q, --quiet           no output printed to the terminal
-  -l, --list            list the management zone names and IDs
+  -l, --list            list the management zone names and IDs, as well as
+                        HTTP location names and IDs
+  --location LOCATION [LOCATION ...]
+                        Add locations that you would like to use for
   --exclude_tags EXCLUDE_TAGS
                         add tags that you want excluded from being transferred
                         over, each tag you want excluded use the arg again
@@ -44,8 +49,10 @@ optional arguments:
                         get the MZ IDs if you don't know them already.
   -a, --all             Selects all browser monitors in the environment, USE
                         WITH CAUTION will raise exception if it's not listed
-  -s [SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]], --select_monitor_id [SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]]
+  -s SELECT_MONITOR_ID [SELECT_MONITOR_ID ...], --select_monitor_id SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]
                         Gets a single browser monitor and converts that to an
-                        HTTP monitor
+                        HTTP monitor. Can add multiple Ids by listing with a
+                        space inbetween or calling the -s again
+
 
 ```
