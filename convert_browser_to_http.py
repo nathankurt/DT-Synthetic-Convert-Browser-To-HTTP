@@ -67,12 +67,15 @@ mz_group.add_argument("-s", "--select_monitor_id", help="Gets a single browser m
 # Grab the arguments 
 args = parser.parse_args()
 
+
 # tenant = args.url
 
 # if args.mz
 # management_zone = args.m
 
 api_token = args.token
+
+
 
 ##Wrapper for requests object, makes things a little bit easier. 
 class Request(object):
@@ -226,9 +229,6 @@ class MakeRequest(object):
 
 
     
-
-
-
 
 
 
@@ -399,12 +399,21 @@ class BrowserMonitor(SyntheticMonitor):
         json_dict["locations"] = loc_list
         
         
-
         
         
+        #Checks for authentication per event. 
         for i in range(len(self.b_json["script"]["events"])):
             val = self.b_json["script"]["events"][i]
             json_dict["script"]["requests"][i]["url"] = val["url"]
+
+            if val["validate"]: 
+                for j in range(len(val["validate"])):
+                    #checks if there are any rules to add other than the fail if greater than 400 error. Not val because they use failiffound vs the other is passiffound. so opposite. 
+                    pattern_regex = "regexConstraint" if val["validate"][j]["isRegex"] else "patternConstraint"
+                    json_dict["script"]["requests"][i]["validation"]["rules"][j+1] = {"value": val["validate"][j]["match"], "passIfFound": not val["validate"][j]["failIfFound"], "type": pattern_regex}
+                    #type is pattern match if not regex, else it's regexConstraint
+
+
             
             if "authentication" in val:
                 json_dict["script"]["requests"][i]["authentication"] = {"type": "", "credentials": ""}
@@ -491,7 +500,7 @@ if args.list:
     pprint(api.get_management_zones().json())
     
     
-    
+ 
 #Finish and run the script again without doing anything
     
 #Check if single monitor was selected
