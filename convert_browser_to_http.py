@@ -220,6 +220,10 @@ class MakeRequest(object):
     def get_location_info(self):
         pass
 
+    @PostRequest(endpoint="api/v1/synthetic/monitors")
+    def post_monitor(self, http_json):
+        return http_json
+
 
     
 
@@ -311,7 +315,7 @@ class BrowserMonitor(SyntheticMonitor):
 
     #Should check the browser monitors and if it fails any threshold, returns false, else returns true
     
-    def create_http_json(self,frequency=None):
+    def create_http_json(self,args,locations):
         json_data = '''{
   "name": "",
   "frequencyMin": 1,
@@ -326,7 +330,14 @@ class BrowserMonitor(SyntheticMonitor):
         "method": "GET",
         "requestBody": "",
         "validation": {
-            "rules": []
+            "rules": [
+                {
+                    "value": ">=400",
+                    "passIfFound": false,
+                    "type": "httpStatusesList"
+                }
+            ],
+            "rulesChaining": "or"
         },
         "configuration": {
           "acceptAnyCertificate": true,
@@ -374,8 +385,8 @@ class BrowserMonitor(SyntheticMonitor):
         
         
         #If argument set for frequency then use that value, otherwise use the default value of the monitor. 
-        if frequency:
-            json_dict["frequencyMin"] = frequency
+        if args.frequency:
+            json_dict["frequencyMin"] = args.frequency
         else:
             json_dict["frequencyMin"] = self.b_json["frequencyMin"]
 
@@ -385,20 +396,20 @@ class BrowserMonitor(SyntheticMonitor):
 
 
         #checks locations But does not check if location is also available publicly. 
-        json_dict["locations"] = self.b_json["locations"]
-        #TODO need locations still
+        json_dict["locations"] = loc_list
         
-        #TODO need authetnication still
+        
 
-        #Gets the description and makes it "loading of url"
-        for request in json_dict["script"]["requests"]:
-            request["description"] = f"Loading of {request['url']}"
+        
         
         for i in range(len(self.b_json["script"]["events"])):
             val = self.b_json["script"]["events"][i]
+            json_dict["script"]["requests"][i]["url"] = val["url"]
+            
             if "authentication" in val:
                 json_dict["script"]["requests"][i]["authentication"] = {"type": "", "credentials": ""}
-                #http monitors use BASIC_AUTHENTICATION while browser monitors just use "basic"
+                
+                #http monitors use BASIC_AUTHENTICATION while browser monitors just use "basic
                 if val["authentication"]["type"] == "basic":
                     json_dict["script"]["requests"][i]["authentication"]["type"] = "BASIC_AUTHENTICATION"
                 
@@ -409,7 +420,9 @@ class BrowserMonitor(SyntheticMonitor):
                 #HTTP Uses "credentials: val" instead of "credential {id : val}"
                 json_dict["script"]["requests"][i]["authentication"]["credentials"] = val["authentication"]["credential"]["id"]
 
-            
+        #Gets the description and makes it "loading of url"
+        for request in json_dict["script"]["requests"]:
+            request["description"] = f"Loading of {request['url']}"
             
 
 
@@ -419,13 +432,15 @@ class BrowserMonitor(SyntheticMonitor):
 
 
 
-
-        return json.dumps(json_dict)
+        return json_dict
+        #return json.dumps(json_dict)
 
     #should get maintenence windows associated with tag
     def get_maintenence_windows(self):
         pass
 
+
+            
 
 
 
@@ -440,22 +455,37 @@ class BrowserMonitor(SyntheticMonitor):
 #gets a list of http locations with names and entityIds
 def get_http_locations(locations):
     dict_list = []
-    for location in locations:
+    for location in locations["locations"]:
+        #private location, so no capability there. 
+        if location["type"] == "PRIVATE":
+            dict_list.append({"name": location["name"], "entityId": location["entityId"]})
         #check if the location can support public http and if it can't, then oops
-        if "HTTP" in location["capabilities"] and location["status"] == "ENABLED":
+        elif "HTTP" in location["capabilities"] and location["status"] == "ENABLED":
             dict_list.append({"name": location["name"], "entityId": location["entityId"]})
     return dict_list
+
+#checks the location 
+def get_eligible_locations(http_locations, browser_locations,b_id):
+    eligible_locations = []
+    for location in monitor_obj.b_json["locations"]:
+        #check the values of each key "entityId" in the list of dicts http_locations 
+        if location in [http["entityId"] for http in http_locations]:
+            eligible_locations.append(location)
+        else:
+            logging.warn(f"Browser Monitor {b_id} using location {location} which either isn't supported yet for HTTP Monitors or Does not exist")
+    
+    return eligible_locations
 
 
 
 #create a make request object so can make them more easily
 api = MakeRequest(args.url)
-    
+http_locations = get_http_locations(api.get_location_info().json())
 ## List Management Zones and IDs 
 if args.list:
     pprint("HTTP Synthetic Monitor Locations: ")
-    locations = api.get_location_info().json()
-    pprint(get_http_locations(locations))
+    
+    pprint(http_locations)
 
     pprint("\n\nManagement Zones List: ")
     pprint(api.get_management_zones().json())
@@ -498,9 +528,42 @@ else:
         b_monitor_type = monitor_obj.b_json["script"]["type"]
         #A browser clickpath monitor which isn't supported
         if b_monitor_type != "availability":
-            monitor_obj = ""
+            logging.warn(f"Browser Clickpath ID: {b_id} Not supported, skipping")
             break
         
+        
+        #if they didn't set the location arg, then check if the ones the browser monitor has set by default work fine. 
+        if not args.location:
+            loc_list = get_eligible_locations(http_locations, monitor_obj.b_json["locations"],b_id)
+            if not loc_list:
+                logging.error(f"Browser Monitor {monitor_obj.b_json['name']}(ID: {b_id}) Doesn't have any locations set that are available for public http monitors, you can set a location in the arguments")
+                break
+        else:
+            loc_list = get_eligible_locations(http_locations, args.location, b_id)
+            if not loc_list:
+                logging.error(f"Monitor Locations You Chose are either ineligible or don't exist, check ids that do exist by using the --list command")
+                break
+
+
+
+            # loc_count = 0
+            # for location in monitor_obj.b_json["locations"]:
+            #     if location in http_locations["entityId"]:
+            #         loc_count += 1
+            #     else:
+            #         logging.warn(f"Browser Monitor {b_id} using location {location} which isn't supported yet for HTTP Monitors")
+            # if loc_count == 0:
+            #     logging.error(f"Browser Monitor {monitor_obj.b_json['name']}(ID: {b_id}) Doesn't have any locations set that are available for public http monitors, you can set a location in the arguments")
+            #     break
+        #else:
+
+
+
+        
+
+        
+
+
         #Check if webform authentication, don't transfer because not supported.
         for event in monitor_obj.b_json["script"]["events"]:
             #check if authentication in event, if it is, make sure it's not webform
@@ -510,9 +573,10 @@ else:
                     break
 
         #TODO Locations 
+
         #location does not exist 
         
-        pprint(monitor_obj.create_http_json())
+        pprint(monitor_obj.create_http_json(args, loc_list))
 
         
             
