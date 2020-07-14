@@ -4,6 +4,10 @@ Last Modified: 7/14/2020
 
 """
 
+#TODO Delete Old Browser Monitors
+#TODO Delete Browser Monitors in this list
+
+
 import requests
 import json
 import argparse
@@ -37,9 +41,12 @@ parser.add_argument("--location", nargs="+", action="append", help="Add location
 #If there are certain tags of monitors that you don't want to transfer over, you can go ahead and set those here in a list
 parser.add_argument("--exclude_tags", help="add tags that you want excluded from being transferred over, each tag you want excluded use the arg again", action="append")
 
-parser.add_argument("--include_tag", help="Add tags that you want included to be transferred over as well. If you have a management zone listed, that will take priority and only include things in that management zone. Multiple tags require multiple args added. \
+parser.add_argument("--include_tag", help="Add tags that you want included to be transferred over as well. If you have a management zone listed,\
+    that will take priority and only include things in that management zone. Multiple tags require multiple args added. \
     For Example: --include_tag Retail Advisor --include_tag Retail", action="append")
-parser.add_argument("-f", "--frequency", help="sets the frequency of the new monitors, if not listed it will just use the same times they had from before. insert number as integer in minutes. If value isn't available, it will be rounded up to nearest value")
+
+parser.add_argument("-f", "--frequency", help="sets the frequency of the new monitors, if not listed it will just use the same times they had from before.\
+     insert number as integer in minutes. If value isn't available, it will be rounded up to nearest value")
 
 
 
@@ -58,7 +65,8 @@ mz_group.add_argument("-m", "--management_zone", help="Management Zone to select
 
 mz_group.add_argument("-a", "--all", help="Selects all browser monitors in the environment, USE WITH CAUTION will raise exception if it's not listed", action="store_true")
 
-mz_group.add_argument("-s", "--select_monitor_id", help="Gets a single browser monitor and converts that to an HTTP monitor. Can add multiple Ids by listing with a space inbetween or calling the -s again ", nargs='+', action="append")
+mz_group.add_argument("-s", "--select_monitor_id", help="Gets a single browser monitor and converts that to an HTTP monitor.\
+     Can add multiple Ids by listing with a space inbetween or calling the -s again ", nargs='+', action="append")
 
 ##TODO Management zone to exclude
 
@@ -136,7 +144,7 @@ class GetRequest(Request):
     def __init__(self, endpoint,args=None):
         #Need to include something for tags and management zone here to create endpoint
         self.endpoint = endpoint
-        if args:
+        if args and not args.all:
             self.endpoint = self.endpoint + "&"
             if args.management_zone:
                 self.endpoint = self.endpoint + "managementZone=" + args.management_zone
@@ -269,6 +277,7 @@ class SyntheticMonitor:
         self.tenant = tenant
         self.r_id = r_id
         self.b_json = self.get_monitor().json()
+        
 
     
     # def create_new_monitor(self, b_monitor,*args):
@@ -311,7 +320,7 @@ class HttpMonitor(SyntheticMonitor):
 class BrowserMonitor(SyntheticMonitor):
     def __init__(self, tenant, b_monitor_id):
         super().__init__(tenant, b_monitor_id)
-    
+        self.http_json = {}
 
     #Should check the browser monitors and if it fails any threshold, returns false, else returns true
     
@@ -406,7 +415,7 @@ class BrowserMonitor(SyntheticMonitor):
             val = self.b_json["script"]["events"][i]
             json_dict["script"]["requests"][i]["url"] = val["url"]
 
-            if val["validate"]: 
+            if "validate" in val: 
                 for j in range(len(val["validate"])):
                     #checks if there are any rules to add other than the fail if greater than 400 error. Not val because they use failiffound vs the other is passiffound. so opposite. 
                     pattern_regex = "regexConstraint" if val["validate"][j]["isRegex"] else "patternConstraint"
@@ -435,21 +444,18 @@ class BrowserMonitor(SyntheticMonitor):
         
 
 
-
-        return json_dict
+        self.http_json = json_dict
+        return self.http_json
         #return json.dumps(json_dict)
 
-    #should get maintenence windows associated with tag
-    def get_maintenence_windows(self):
-        pass
 
-
-            
 
     
     #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
-    def create_http(self,args):
-        pass
+    @PostRequest(endpoint="api/v1/synthetic/monitors")
+    def create_http(self):
+        return json.dumps(self.http_json)
+        
         
 
 #gets a list of http locations with names and entityIds
@@ -494,10 +500,13 @@ if args.list:
  
 #Finish and run the script again without doing anything
     
-#Check if single monitor was selected
+
 else:
+    #ids to put into after http monitor created that way can reference later. 
     b_monitor_http_monitor_dict = {}
     browser_monitor_ids = []
+
+    #Check if single monitor was selected
     if args.select_monitor_id:
         #Get list of monitors to create and do stuff with
         #flatten list and combine 
@@ -516,7 +525,8 @@ else:
         #Raise Exception and say you haven't listed anything.
         logging.error("Input Error: Must Select Filter for monitors, if you want all monitors, make sure to use -a")
         raise InputError("Input Error", "Must select filter for monitors, if all make sure to use -a")
-    
+    else:
+        browser_monitor_ids = api.get_browser_monitors_ids()
     #Empty list so raise exception
     if browser_monitor_ids == []:
         logging.error("Input Error: No Monitors in this scope")
@@ -559,7 +569,12 @@ else:
 
         #location does not exist 
         
-        pprint(monitor_obj.create_http_json(args, loc_list))
+        #pprint(monitor_obj.create_http_json(args, loc_list))
+        monitor_obj.create_http_json(args, loc_list)
+        response = monitor_obj.create_http()
+        pprint(response.json())
+        http_id = response.json()["entityId"]
+        b_monitor_http_monitor_dict.update({b_id:http_id})
 
         #TODO Make this new HTTP Monitor
         logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {b_id}")
@@ -575,16 +590,9 @@ else:
             if m_id in b_monitor_http_monitor_dict.keys():
                 m_window_obj.window_json["scope"]["entities"].append(b_monitor_http_monitor_dict[m_id])
                 logging.info(f"Adding HTTP Monitor {b_monitor_http_monitor_dict[m_id]} to Maintenence Window {item}")
+                #Put Request for Window
                 pprint(m_window_obj.window_json)
 
-
-        
-        
-
-## THINGS I DON"T WANT
-# Entity ID: 
-# Created From
-# configuration: Device
 
 
         
