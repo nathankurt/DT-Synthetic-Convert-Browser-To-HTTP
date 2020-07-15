@@ -2,11 +2,11 @@
 
 
 ```
-usage: convert_browser_to_http.py [-h] [-q] [-l]
+usage: convert_browser_to_http.py [-h] [-q] [-l] [--convert_disabled]
                                   [--location LOCATION [LOCATION ...]]
-                                  [--exclude_tags EXCLUDE_TAGS]
+                                  [--overwrite] [--exclude-tag EXCLUDE_TAG]
                                   [--include_tag INCLUDE_TAG] [-f FREQUENCY]
-                                  [-k KEEP_OLD | -d]
+                                  [-k | --delete | -d | --dry_run]
                                   [-m MANAGEMENT_ZONE | -a | -s SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]]
                                   url token
 
@@ -23,9 +23,12 @@ optional arguments:
   -q, --quiet           no output printed to the terminal
   -l, --list            list the management zone names and IDs, as well as
                         HTTP location names and IDs
+  --convert_disabled    also includes values that are disabled
   --location LOCATION [LOCATION ...]
                         Add locations that you would like to use for
-  --exclude_tags EXCLUDE_TAGS
+  --overwrite           If there is an existing HTTP Monitor with the same
+                        name, overwrite it
+  --exclude-tag EXCLUDE_TAG
                         add tags that you want excluded from being transferred
                         over, each tag you want excluded use the arg again
   --include_tag INCLUDE_TAG
@@ -33,22 +36,26 @@ optional arguments:
                         as well. If you have a management zone listed, that
                         will take priority and only include things in that
                         management zone. Multiple tags require multiple args
-                        added. For Example: --include_tag Retail Advisor
-                        --include_tag Retail
+                        added. For Example: --include-tag Retail Advisor
+                        --include-tag Retail
   -f FREQUENCY, --frequency FREQUENCY
                         sets the frequency of the new monitors, if not listed
                         it will just use the same times they had from before.
-                        insert number as integer in minutes. If value isn't
-                        available, it will be rounded up to nearest value
-  -k KEEP_OLD, --keep_old KEEP_OLD
-                        doesn't disable the old browser monitors so you have
+                        insert number as integer in minutes. values available:
+                        5,10,15,30,60,120,180
+  -k, --keep_old        doesn't disable the old browser monitors so you have
                         two running concurrently
-  -d, --delete          Deletes the old browser monitor
+  --delete              Deletes the old browser monitor
+  -d, --disable         Disables old browser monitors but still keeps them
+                        there
+  --dry_run             Doesn't actually post but does everything else to see
+                        if there would be an error
   -m MANAGEMENT_ZONE, --management_zone MANAGEMENT_ZONE
                         Management Zone to select, use the --list feature to
                         get the MZ IDs if you don't know them already.
   -a, --all             Selects all browser monitors in the environment, USE
-                        WITH CAUTION will raise exception if it's not listed
+                        WITH CAUTION will raise exception if it's not with any
+                        other filters listed
   -s SELECT_MONITOR_ID [SELECT_MONITOR_ID ...], --select_monitor_id SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]
                         Gets a single browser monitor and converts that to an
                         HTTP monitor. Can add multiple Ids by listing with a

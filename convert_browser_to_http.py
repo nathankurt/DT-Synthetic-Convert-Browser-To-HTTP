@@ -17,7 +17,6 @@ import functools
 import logging
 from itertools import chain
 from datetime import datetime
-import sys
 
 
 
@@ -362,8 +361,9 @@ class SyntheticMonitor:
     def __repr__(self):
         return pformat(self.get_monitor().json())
 
-
-
+    @DeleteRequest(endpoint="/api/v1/synthetic/monitors/", r_id='self.r_id')
+    def delete_monitor(self):
+        pass
 # class ManagementZone:
 #     def __init__(self, tenant, mz_id):
 #         self.tenant = tenant
@@ -683,7 +683,13 @@ else:
             del_response = del_api.delete_monitor()
             pprint(f"Deletion Status Code: {del_response.status_code}")
             #maybe change the assertion stuff eventually
-            assert del_response.status_code < 400, logging.error(f"Unable to delete monitor {del_id} Error Code: {del_response.status_code}")
+            assert del_response.status_code < 400, logging.error(f"Unable to delete monitor {del_id}\
+                 Error Code: {del_response.status_code}")
+        
+        if args.delete and response.status_code < 400:
+            del_b_monitor_response = monitor_obj.delete_monitor()
+            assert del_b_monitor_response.status_code < 400, logging.error(f"Unable to delete browser monitor {b_id}\
+                 Error Code: {del_b_monitor_response.status_code}")
 
         pprint(response.json())
         http_id = response.json()["entityId"]
