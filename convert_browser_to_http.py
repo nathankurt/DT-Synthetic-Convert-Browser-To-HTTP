@@ -16,6 +16,7 @@ from pprint import pprint, pformat
 import functools
 import logging
 from itertools import chain
+from datetime import datetime
 
 class InputError(Exception):
     def __init__(self, expression, message):
@@ -24,7 +25,7 @@ class InputError(Exception):
 
 
 #TODO Add filename to logger
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s %(message)s', filename=datetime.now().strftime('mylogfile_%H_%M_%d_%m_%Y.log'), level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(description="Convert Browser Monitors to HTTP Monitors")
 
@@ -33,6 +34,8 @@ parser.add_argument("url", help="tenant url with SaaS format: https://[tenant_ke
 parser.add_argument("token", type=str, help="Your API Token generated with access")
 
 parser.add_argument("-q", "--quiet", help="no output printed to the terminal", action="store_true")
+
+parser.add_argument("--debug", help="prints better logging message" )
 
 #Lists the management zones in case you don't know the ID's to hit. 
 parser.add_argument("-l", "--list", help="list the management zone names and IDs, as well as HTTP location names and IDs", action="store_true")
@@ -80,8 +83,24 @@ args = parser.parse_args()
 
 # if args.mz
 # management_zone = args.m
+frequency_ls = [5,10,15,30,60,120,180]
 
 api_token = args.token
+
+if args.frequency:
+
+    try:
+        val = int(args.frequency)
+        assert val in frequency_ls, f"Frequency must be either {','.join(map(str, frequency_ls))}"
+        
+
+    except TypeError:
+        logging.error("Frequency Input must be an integer in minutes.")
+    
+
+
+
+
 
 
 
@@ -328,7 +347,7 @@ class BrowserMonitor(SyntheticMonitor):
         json_data = '''{
   "name": "",
   "frequencyMin": 1,
-  "enabled": true,
+  "enabled": True,
   "type": "HTTP",  
   "script": {
     "version": "1.0",
