@@ -27,7 +27,7 @@ class InputError(Exception):
         self.message = message
 
 
-logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', filemode='w', filename="logs/" + datetime.now().strftime('b2http_logfile_%H_%M_%d_%m_%Y.log'), datefmt='%m-%d-%Y %I:%M:%S %p', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', filemode='w', filename="logs/" + datetime.now().strftime('b2http_logfile_%H_%M_%d_%m_%Y.log'), datefmt='%m-%d-%Y %H:%M:%S', level=logging.DEBUG)
 
 
 
@@ -240,6 +240,12 @@ def list_synthetic_names(func):
     def wrapper_list_names(*args, **kwargs):
         return ([element['name'] for element in func(*args,**kwargs).json()['monitors']])
     return wrapper_list_names
+
+def dict_synthetic_name_id(func):
+    @functools.wraps(func)
+    def wrapper_list_dict(*args, **kwargs):
+        return {element['name']: element['entityId'] for element in func(*args, **kwargs).json()['monitors']}
+    return wrapper_list_dict
         
 
 class MakeRequest(object):
@@ -279,9 +285,14 @@ class MakeRequest(object):
     def post_monitor(self, http_json):
         return http_json
 
-    @list_synthetic_names
+    @dict_synthetic_name_id
     @GetRequest(endpoint="api/v1/synthetic/monitors?type=HTTP")
-    def get_http_names(self):
+    def get_http_names_id(self):
+        pass
+
+    @dict_synthetic_name_id
+    @GetRequest(endpoint="api/v1/synthetic/monitors?type=BROWSER",args=args)
+    def get_browser_names_id(self):
         pass
 
 
@@ -581,16 +592,23 @@ else:
         browser_monitor_ids = api.get_browser_monitors_ids()
     #Empty list so raise exception
 
+
+    browser_names = api.get_browser_names_id()
+    http_names = api.get_http_names_id()
     #TODO
     if args.overwrite:
         pass
+    else:
+        already_made_ls = [browser_names[x] for x in browser_names.keys() if x +" Now HTTP" in http_names.keys()]
+        if already_made_ls:
+            browser_monitor_ids = list(set.difference(set(browser_monitor_ids), set(already_made_ls)))
+        
+
+        
 
 
 
-    
-    if browser_monitor_ids == []:
-        logging.critical("Input Error: No Monitors in this scope")
-        raise ValueError("No Monitors in this scope")
+    assert browser_monitor_ids != [], logging.critical("Assertion Error, No Monitors in this scope")
 
     
     for b_id in browser_monitor_ids:
