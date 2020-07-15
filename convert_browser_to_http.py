@@ -364,13 +364,11 @@ class SyntheticMonitor:
     @DeleteRequest(endpoint="/api/v1/synthetic/monitors/", r_id='self.r_id')
     def delete_monitor(self):
         pass
-# class ManagementZone:
-#     def __init__(self, tenant, mz_id):
-#         self.tenant = tenant
-#         self.mz_id = mz_id
 
-#     @GetOneRequest(endpoint="api/config/v1/management")
-#     def get_management_zone(self):
+    @PutRequest(endpoint="/api/v1/synthetic/monitors/", r_id='self.r_id')
+    def disable_monitor(self):
+        self.b_json["enabled"] = False
+        return self.b_json
     
 
 class HttpMonitor(SyntheticMonitor):
@@ -669,53 +667,66 @@ else:
         #pprint(monitor_obj.create_http_json(args, loc_list))
         monitor_obj.create_http_json(args, loc_list)
         
-        #TODO Check if args.overwrite then delete the old val after we get a 200 response from monitor
-        del_id = ""
-        if args.overwrite:
-            if b_id in already_made_dict.keys():
-                #delete HTTP Monitor
-                del_id = already_made_dict[b_id]
+
+        if not args.dry_run:
+
+            #TODO Check if args.overwrite then delete the old val after we get a 200 response from monitor
+            del_id = ""
+            if args.overwrite:
+                if b_id in already_made_dict.keys():
+                    #delete HTTP Monitor
+                    del_id = already_made_dict[b_id]
 
 
-        response = monitor_obj.create_http()
-        if args.overwrite and response.status_code < 400:
-            del_api = MakeRequest(args.url, r_id=del_id)
-            del_response = del_api.delete_monitor()
-            pprint(f"Deletion Status Code: {del_response.status_code}")
-            #maybe change the assertion stuff eventually
-            assert del_response.status_code < 400, logging.error(f"Unable to delete monitor {del_id}\
-                 Error Code: {del_response.status_code}")
+            response = monitor_obj.create_http()
+
+            #Checks if they want to overwrite, if they don't 
+            if args.overwrite and response.status_code < 400:
+                del_api = MakeRequest(args.url, r_id=del_id)
+                del_response = del_api.delete_monitor()
+                pprint(f"Deletion Status Code: {del_response.status_code}")
+                #maybe change the assertion stuff eventually
+                assert del_response.status_code < 400, logging.error(f"Unable to delete monitor {del_id}\
+                    Error Code: {del_response.status_code}")
+                logging.info(f"Overwrote HTTP Monitor: {del_id}")
+
+
+            
+            if args.delete and response.status_code < 400:
+                del_b_monitor_response = monitor_obj.delete_monitor()
+                assert del_b_monitor_response.status_code < 400, logging.error(f"Unable to delete browser monitor {b_id}\
+                    Error Code: {del_b_monitor_response.status_code}")
+                logging.info(f"Deleted Old Browser Monitor, Name: {monitor_obj.b_json['name']} ID: {b_id}")
+            elif args.disable and response.status_code < 400:
+                disable_b_monitor_response = monitor_obj.disable_monitor()
+                assert disable_b_monitor_response.status_code < 400, logging.error(f"Unable to disable browser monitor {b_id} \
+                    Error Code: {disable_b_monitor_response.status_code}")
+
+            pprint(response.json())
+            http_id = response.json()["entityId"]
+            logging.debug("HTTP ID: " + http_id)
+            b_monitor_http_monitor_dict.update({b_id:http_id})
+
+            logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {http_id}")
+
+        #empty list so no requirements met. 
+
+        assert b_monitor_http_monitor_dict.keys(), logging.critical("Error: No Monitors in this scope")
+
         
-        if args.delete and response.status_code < 400:
-            del_b_monitor_response = monitor_obj.delete_monitor()
-            assert del_b_monitor_response.status_code < 400, logging.error(f"Unable to delete browser monitor {b_id}\
-                 Error Code: {del_b_monitor_response.status_code}")
+        
+        m_windows = api.get_maintenence_windows_ids()
 
-        pprint(response.json())
-        http_id = response.json()["entityId"]
-        logging.debug("HTTP ID: " + http_id)
-        b_monitor_http_monitor_dict.update({b_id:http_id})
-
-        logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {http_id}")
-
-    #empty list so no requirements met. 
-
-    assert b_monitor_http_monitor_dict.keys(), logging.critical("Error: No Monitors in this scope")
-
-    
-    
-    m_windows = api.get_maintenence_windows_ids()
-
-    for item in m_windows:
-        m_window_obj = MaintenenceWindow(args.url, item)
-        #for each item in maintenence window look through and if it exists as a key in the list, add the http monitor to the new _json
-        for m_id in m_window_obj.window_json["scope"]["entities"]:
-            #if it's an all env one, or tag one don't need to bother because it will already be transferred over
-            if m_id in b_monitor_http_monitor_dict.keys():
-                m_window_obj.window_json["scope"]["entities"].append(b_monitor_http_monitor_dict[m_id])
-                logging.info(f"Adding HTTP Monitor {b_monitor_http_monitor_dict[m_id]} to Maintenence Window {item}")
-                #Put Request for Window
-                pprint(m_window_obj.window_json)
+        for item in m_windows:
+            m_window_obj = MaintenenceWindow(args.url, item)
+            #for each item in maintenence window look through and if it exists as a key in the list, add the http monitor to the new _json
+            for m_id in m_window_obj.window_json["scope"]["entities"]:
+                #if it's an all env one, or tag one don't need to bother because it will already be transferred over
+                if m_id in b_monitor_http_monitor_dict.keys():
+                    m_window_obj.window_json["scope"]["entities"].append(b_monitor_http_monitor_dict[m_id])
+                    logging.info(f"Adding HTTP Monitor {b_monitor_http_monitor_dict[m_id]} to Maintenence Window {item}")
+                    #Put Request for Window
+                    pprint(m_window_obj.window_json)
 
 
 
