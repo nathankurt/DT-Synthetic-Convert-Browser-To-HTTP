@@ -17,6 +17,9 @@ import functools
 import logging
 from itertools import chain
 from datetime import datetime
+import sys
+
+
 
 class InputError(Exception):
     def __init__(self, expression, message):
@@ -24,8 +27,9 @@ class InputError(Exception):
         self.message = message
 
 
-#TODO Add filename to logger
-logging.basicConfig(format='%(asctime)s %(message)s', filename=datetime.now().strftime('mylogfile_%H_%M_%d_%m_%Y.log'), level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', filemode='w', filename="logs/" + datetime.now().strftime('b2http_logfile_%H_%M_%d_%m_%Y.log'), datefmt='%m-%d-%Y %I:%M:%S %p', level=logging.DEBUG)
+
+
 
 parser = argparse.ArgumentParser(description="Convert Browser Monitors to HTTP Monitors")
 
@@ -35,21 +39,29 @@ parser.add_argument("token", type=str, help="Your API Token generated with acces
 
 parser.add_argument("-q", "--quiet", help="no output printed to the terminal", action="store_true")
 
-parser.add_argument("--debug", help="prints better logging message" )
+#TODO
+#parser.add_argument("--debug", help="prints better logging message", action="store_true")
 
 #Lists the management zones in case you don't know the ID's to hit. 
 parser.add_argument("-l", "--list", help="list the management zone names and IDs, as well as HTTP location names and IDs", action="store_true")
 
+
+parser.add_argument("--convert_disabled", help="also includes values that are disabled", action="store_true")
+
 parser.add_argument("--location", nargs="+", action="append", help="Add locations that you would like to use for ")
+
+parser.add_argument("--overwrite", help="If there is an existing HTTP Monitor with the same name, overwrite it", action="store_true")
+
 #If there are certain tags of monitors that you don't want to transfer over, you can go ahead and set those here in a list
-parser.add_argument("--exclude_tags", help="add tags that you want excluded from being transferred over, each tag you want excluded use the arg again", action="append")
+#TODO
+parser.add_argument("--exclude-tag", help="add tags that you want excluded from being transferred over, each tag you want excluded use the arg again", action="append")
 
 parser.add_argument("--include_tag", help="Add tags that you want included to be transferred over as well. If you have a management zone listed,\
     that will take priority and only include things in that management zone. Multiple tags require multiple args added. \
-    For Example: --include_tag Retail Advisor --include_tag Retail", action="append")
+    For Example: --include-tag Retail Advisor --include-tag Retail", action="append")
 
 parser.add_argument("-f", "--frequency", help="sets the frequency of the new monitors, if not listed it will just use the same times they had from before.\
-     insert number as integer in minutes. If value isn't available, it will be rounded up to nearest value")
+     insert number as integer in minutes. values available: 5,10,15,30,60,120,180")
 
 
 
@@ -57,16 +69,24 @@ parser.add_argument("-f", "--frequency", help="sets the frequency of the new mon
 ## A mutually exclusive group so you can only ask for keep old or delete old. 
 group1 = parser.add_mutually_exclusive_group()
 
-group1.add_argument("-k", "--keep_old", help="doesn't disable the old browser monitors so you have two running concurrently")
+#TODO
+group1.add_argument("-k", "--keep_old", help="doesn't disable the old browser monitors so you have two running concurrently", action="store_true")
 
-group1.add_argument("-d", "--delete", help="Deletes the old browser monitor", action="store_true")
+#TODO
+group1.add_argument("--delete", help="Deletes the old browser monitor", action="store_true")
+
+#TODO
+group1.add_argument("-d", "--disable", help="Disables old browser monitors but still keeps them there", action="store_true")
+
+#TODO
+group1.add_argument("--dry_run", help="Doesn't actually post but does everything else to see if there would be an error", action="store_true")
 
 #Can only select some of these
 mz_group = parser.add_mutually_exclusive_group()
 
 mz_group.add_argument("-m", "--management_zone", help="Management Zone to select, use the --list feature to get the MZ IDs if you don't know them already.")
 
-mz_group.add_argument("-a", "--all", help="Selects all browser monitors in the environment, USE WITH CAUTION will raise exception if it's not listed", action="store_true")
+mz_group.add_argument("-a", "--all", help="Selects all browser monitors in the environment, USE WITH CAUTION will raise exception if it's not with any other filters listed", action="store_true")
 
 mz_group.add_argument("-s", "--select_monitor_id", help="Gets a single browser monitor and converts that to an HTTP monitor.\
      Can add multiple Ids by listing with a space inbetween or calling the -s again ", nargs='+', action="append")
@@ -87,12 +107,12 @@ frequency_ls = [5,10,15,30,60,120,180]
 
 api_token = args.token
 
+#If they select a frequency val, check if input is valid
 if args.frequency:
 
     try:
         val = int(args.frequency)
-        assert val in frequency_ls, f"Frequency must be either {','.join(map(str, frequency_ls))}"
-        
+        assert val in frequency_ls, logging.critical(f"Assertion Error: Frequency must be either {','.join(map(str, frequency_ls))}")
 
     except TypeError:
         logging.error("Frequency Input must be an integer in minutes.")
@@ -115,7 +135,6 @@ class Request(object):
           "Api-Token": api_token
         }
         self.endpoint = endpoint
-        #self.extras = extras
         self.target = target
 
 
@@ -125,12 +144,12 @@ class Request(object):
             
             payload = f(obj, *args, **kwargs)
 
+
             #Used for when you want to just get one request, set target to extra value you want to add
             """""
             IE: super().__init__("GET", endpoint, target='r_id')
                 @GetOneRequest(endpoint="api/config/v1/maintenanceWindows", r_id='self.r_id')  
             """
-
             url_extras = ""
             if self.target is not None:
                 url_extras = getattr(obj,self.target)
@@ -164,9 +183,10 @@ class GetRequest(Request):
         #Need to include something for tags and management zone here to create endpoint
         self.endpoint = endpoint
         if args and not args.all:
-            self.endpoint = self.endpoint + "&"
+            if not args.convert_disabled:
+                self.endpoint = self.endpoint + "&enabled=true"
             if args.management_zone:
-                self.endpoint = self.endpoint + "managementZone=" + args.management_zone
+                self.endpoint = self.endpoint + "&managementZone=" + args.management_zone
             if args.include_tag:
                 tag_string = "&"
                 for x in args.include_tag:
@@ -180,7 +200,6 @@ class GetRequest(Request):
 
         super().__init__("GET", self.endpoint)
 
-    
 
 class GetOneRequest(Request):
     def __init__(self, endpoint,r_id):
@@ -215,6 +234,12 @@ def list_synthetic_ids(func):
     def wrapper_list_ids(*args, **kwargs):
         return ([element['entityId'] for element in func(*args,**kwargs).json()['monitors']])
     return wrapper_list_ids
+
+def list_synthetic_names(func):
+    @functools.wraps(func)
+    def wrapper_list_names(*args, **kwargs):
+        return ([element['name'] for element in func(*args,**kwargs).json()['monitors']])
+    return wrapper_list_names
         
 
 class MakeRequest(object):
@@ -254,16 +279,15 @@ class MakeRequest(object):
     def post_monitor(self, http_json):
         return http_json
 
+    @list_synthetic_names
+    @GetRequest(endpoint="api/v1/synthetic/monitors?type=HTTP")
+    def get_http_names(self):
+        pass
+
+
 
     
 
-
-
-
-##TODO Find maintenence windows things are in and add them to maintenence windows. 
-  # First thing to do is create http monitors and get their IDs, store them in dict [browser_val:http_val]
-  # Look through all of the apps and windows, grab browser monitors that are in the list store it in a dict
-  # Look through all of the 
 
 
 class MaintenenceWindow:
@@ -347,7 +371,7 @@ class BrowserMonitor(SyntheticMonitor):
         json_data = '''{
   "name": "",
   "frequencyMin": 1,
-  "enabled": True,
+  "enabled": true,
   "type": "HTTP",  
   "script": {
     "version": "1.0",
@@ -404,6 +428,10 @@ class BrowserMonitor(SyntheticMonitor):
 
         json_dict = json.loads(json_data)
 
+        
+        
+
+        
         json_dict["name"] = self.b_json["name"] + " Now HTTP"
         #transfers tags over
         json_dict["tags"] = self.b_json["tags"]
@@ -441,7 +469,7 @@ class BrowserMonitor(SyntheticMonitor):
                     json_dict["script"]["requests"][i]["validation"]["rules"].append({"value": val["validate"][j]["match"], "passIfFound": not val["validate"][j]["failIfFound"], "type": pattern_regex})
                     #type is pattern match if not regex, else it's regexConstraint
 
-
+            
             
             if "authentication" in val:
                 json_dict["script"]["requests"][i]["authentication"] = {"type": "", "credentials": ""}
@@ -474,6 +502,11 @@ class BrowserMonitor(SyntheticMonitor):
     @PostRequest(endpoint="api/v1/synthetic/monitors")
     def create_http(self):
         return self.http_json
+
+    @PutRequest(endpoint="api/v1/synthetic/monitors",r_id='self.r_id')
+    def disable_browser(self):
+        self.b_json["enabled"] = False
+        return self.b_json
         
         
 
@@ -542,13 +575,21 @@ else:
 
     elif not args.all:
         #Raise Exception and say you haven't listed anything.
-        logging.error("Input Error: Must Select Filter for monitors, if you want all monitors, make sure to use -a")
+        logging.critical("Input Error: Must Select Filter for monitors, if you want all monitors, make sure to use -a")
         raise InputError("Input Error", "Must select filter for monitors, if all make sure to use -a")
     else:
         browser_monitor_ids = api.get_browser_monitors_ids()
     #Empty list so raise exception
+
+    #TODO
+    if args.overwrite:
+        pass
+
+
+
+    
     if browser_monitor_ids == []:
-        logging.error("Input Error: No Monitors in this scope")
+        logging.critical("Input Error: No Monitors in this scope")
         raise ValueError("No Monitors in this scope")
 
     
@@ -559,20 +600,28 @@ else:
         #A browser clickpath monitor which isn't supported
         if b_monitor_type != "availability":
             logging.warn(f"Browser Clickpath ID: {b_id} Not supported, skipping")
-            break
+            continue
+
+        #If they wanted excluded tags, checks if they used the args and it worked. 
+        if args.exclude_tag: 
+            if any(x in monitor_obj.get_tags() for x in args.exclude_tag):
+                continue
+
+        
+            #Want to overwrite any value with name that already exists 
         
         
         #if they didn't set the location arg, then check if the ones the browser monitor has set by default work fine. 
         if not args.location:
             loc_list = get_eligible_locations(http_locations, monitor_obj.b_json["locations"],b_id)
             if not loc_list:
-                logging.error(f"Browser Monitor {monitor_obj.b_json['name']}(ID: {b_id}) Doesn't have any locations set that are available for public http monitors, you can set a location in the arguments")
-                break
+                logging.critical(f"Browser Monitor {monitor_obj.b_json['name']}(ID: {b_id}) Doesn't have any locations set that are available for public http monitors, you can set a location in the arguments")
+                continue
         else:
             loc_list = get_eligible_locations(http_locations, args.location, b_id)
             if not loc_list:
-                logging.error(f"Monitor Locations You Chose are either ineligible or don't exist, check ids that do exist by using the --list command")
-                break
+                logging.critical(f"Monitor Locations You Chose are either ineligible or don't exist, check ids that do exist by using the --list command")
+                continue
         
 
 
@@ -591,21 +640,28 @@ else:
         #pprint(monitor_obj.create_http_json(args, loc_list))
         monitor_obj.create_http_json(args, loc_list)
         response = monitor_obj.create_http()
+
         pprint(response.json())
         http_id = response.json()["entityId"]
+        logging.debug("HTTP ID: " + http_id)
         b_monitor_http_monitor_dict.update({b_id:http_id})
 
         #TODO Make this new HTTP Monitor
         logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {http_id}")
 
-    
+    #empty list so no requirements met. 
 
+    assert b_monitor_http_monitor_dict.keys(), logging.critical("Error: No Monitors in this scope")
+
+    
+    
     m_windows = api.get_maintenence_windows_ids()
 
     for item in m_windows:
         m_window_obj = MaintenenceWindow(args.url, item)
         #for each item in maintenence window look through and if it exists as a key in the list, add the http monitor to the new _json
         for m_id in m_window_obj.window_json["scope"]["entities"]:
+            #if it's an all env one, or tag one don't need to bother because it will already be transferred over
             if m_id in b_monitor_http_monitor_dict.keys():
                 m_window_obj.window_json["scope"]["entities"].append(b_monitor_http_monitor_dict[m_id])
                 logging.info(f"Adding HTTP Monitor {b_monitor_http_monitor_dict[m_id]} to Maintenence Window {item}")
@@ -614,44 +670,7 @@ else:
 
 
 
-        
-
-
-
-
-        
-        
-
-
-
-
-
-        
-        
-        
-        
-
-
-
-
     
-    
-
-    
-
-
-    
-
-    # m_window_ids = api.get_maintenence_windows_ids()
-
-    # #print(m_window_ids)
-    # #print(m_window_ids[0])
-
-    # #pprint(look_at_m_windows(args.url))
-    # #pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).get_json())
-    # pprint(MaintenenceWindow(args.url, str(m_window_ids[0])).__repr__())
-
-#Take Browser Monitor, Convert to HTTP Monitor -> I can probably do that in the class
 
 
 
