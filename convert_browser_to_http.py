@@ -126,7 +126,7 @@ class Request(object):
             if payload is not None:
               args['json'] = payload
 
-            logging.info(f"Request URL: {args['url']}")
+            logging.debug(f"Request URL: {args['url']}")
               
             return requests.request(**args)
         return wrapper
@@ -454,7 +454,7 @@ class BrowserMonitor(SyntheticMonitor):
     #creates new HTTP Monitor From Browser Monitor, Returns ID of New HTTP Monitor
     @PostRequest(endpoint="api/v1/synthetic/monitors")
     def create_http(self):
-        return json.dumps(self.http_json)
+        return self.http_json
         
         
 
@@ -577,7 +577,7 @@ else:
         b_monitor_http_monitor_dict.update({b_id:http_id})
 
         #TODO Make this new HTTP Monitor
-        logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {b_id}")
+        logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {http_id}")
 
     
 
