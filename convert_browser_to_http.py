@@ -216,6 +216,7 @@ class PutRequest(Request):
 
 class DeleteRequest(Request):
     def __init__(self, endpoint,r_id):
+        
         super().__init__("DELETE", endpoint, target='r_id')
 
 
@@ -250,8 +251,9 @@ def dict_synthetic_name_id(func):
 
 class MakeRequest(object):
 
-    def __init__(self,tenant, *args):
+    def __init__(self,tenant, r_id="", *args):
         self.tenant = tenant
+        self.r_id = r_id
 
     @GetRequest(endpoint="api/v1/synthetic/monitors?type=BROWSER", args=args)
     def get_browser_monitors(self):
@@ -294,6 +296,15 @@ class MakeRequest(object):
     @GetRequest(endpoint="api/v1/synthetic/monitors?type=BROWSER",args=args)
     def get_browser_names_id(self):
         pass
+
+    @DeleteRequest(endpoint="api/v1/synthetic/monitors/", r_id = 'r_id')
+    def delete_monitor(self):
+        pass
+        
+
+        
+
+    
 
 
 
@@ -595,10 +606,12 @@ else:
 
     browser_names = api.get_browser_names_id()
     http_names = api.get_http_names_id()
-    #TODO
-    if args.overwrite:
-        pass
+    #TODO Get Overwrite Function Working
+    if args.overwrite:  
+        already_made_dict = {browser_names[x]:http_names[x + " Now HTTP"] for x in browser_names.keys()}
+        pprint(already_made_dict)
     else:
+        #Just ignore the ones that have already been made
         already_made_ls = [browser_names[x] for x in browser_names.keys() if x +" Now HTTP" in http_names.keys()]
         if already_made_ls:
             browser_monitor_ids = list(set.difference(set(browser_monitor_ids), set(already_made_ls)))
@@ -651,20 +664,32 @@ else:
                     logging.warn("Authentication Type is Webform, Skipping Monitor")
                     break
 
-        #TODO Locations 
-
-        #location does not exist 
+    
         
         #pprint(monitor_obj.create_http_json(args, loc_list))
         monitor_obj.create_http_json(args, loc_list)
+        
+        #TODO Check if args.overwrite then delete the old val after we get a 200 response from monitor
+        del_id = ""
+        if args.overwrite:
+            if b_id in already_made_dict.keys():
+                #delete HTTP Monitor
+                del_id = already_made_dict[b_id]
+
+
         response = monitor_obj.create_http()
+        if args.overwrite and response.status_code < 400:
+            del_api = MakeRequest(args.url, r_id=del_id)
+            del_response = del_api.delete_monitor()
+            pprint(f"Deletion Status Code: {del_response.status_code}")
+            #maybe change the assertion stuff eventually
+            assert del_response.status_code < 400, logging.error(f"Unable to delete monitor {del_id} Error Code: {del_response.status_code}")
 
         pprint(response.json())
         http_id = response.json()["entityId"]
         logging.debug("HTTP ID: " + http_id)
         b_monitor_http_monitor_dict.update({b_id:http_id})
 
-        #TODO Make this new HTTP Monitor
         logging.info(f"Creating Monitor from Old Browser Monitor ID: {b_id} New Browser Monitor ID: {http_id}")
 
     #empty list so no requirements met. 
