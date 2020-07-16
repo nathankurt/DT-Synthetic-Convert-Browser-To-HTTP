@@ -682,6 +682,7 @@ else:
                 if b_id in already_made_dict.keys():
                     #delete HTTP Monitor
                     del_id = already_made_dict[b_id]
+                    
 
 
             response = monitor_obj.create_http()
@@ -692,7 +693,7 @@ else:
             
 
             #Checks if they want to overwrite, if they don't 
-            if args.overwrite and response.status_code < 400:
+            if args.overwrite and response.status_code < 400 and del_id != "":
                 del_api = MakeRequest(args.url, r_id=del_id)
                 del_response = del_api.delete_monitor()
                 #pprint(f"Deletion Status Code: {del_response.status_code}")
