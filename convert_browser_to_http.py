@@ -736,7 +736,7 @@ else:
 
         if len(failed_monitors.keys()) > 0:
             pprint("List of failed monitors: ")
-            print('\n'.join(['{0}{1}'.format(k,v) for k,v in failed_monitors.items()]))
+            print('\n'.join(['Name: {0:_<15} Id: {1}'.format(k,v) for k,v in failed_monitors.items()]))
         else:
             logging.info("All Monitors Successfully Created")
 
