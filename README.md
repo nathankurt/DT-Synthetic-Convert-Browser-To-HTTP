@@ -8,6 +8,11 @@ That has all changed as of June 2020 for Dynatrace SaaS customers. Now you can u
 
 * Python Version >= 3.6
 * Requests Module (Found in `requirements.txt` and `Pipfile`)
+* Dynatrace API Token with the Following Access Turned On:
+  * `Create and read synthetic monitors, locations, and nodes`
+  * `Read configuration`
+  * `Write Configuration`
+  * `Read Credential Vault entries`
 
 ### Optional 
 
