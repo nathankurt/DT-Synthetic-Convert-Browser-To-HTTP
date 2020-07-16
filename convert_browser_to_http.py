@@ -4,9 +4,6 @@ Last Modified: 7/14/2020
 
 """
 
-#TODO Delete Old Browser Monitors
-#TODO Delete Browser Monitors in this list
-
 
 import requests
 import json
