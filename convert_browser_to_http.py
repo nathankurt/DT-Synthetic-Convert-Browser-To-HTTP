@@ -604,8 +604,15 @@ else:
     browser_names = api.get_browser_names_id()
     http_names = api.get_http_names_id()
     #TODO Get Overwrite Function Working
-    if args.overwrite:  
-        already_made_dict = {browser_names[x]:http_names[x + " Now HTTP"] for x in browser_names.keys()}
+    if args.overwrite:
+        already_made_dict = {} 
+        for k in http_names.keys():
+            j = k.replace(" Now HTTP", "")
+            if j in browser_names.keys():
+                already_made_dict.update({browser_names[j]:http_names[k]})
+
+
+
         #pprint(already_made_dict)
     else:
         #Just ignore the ones that have already been made
@@ -734,11 +741,11 @@ else:
                     #Put Request for Window
                     #pprint(m_window_obj.window_json)
 
-        if len(failed_monitors.keys()) > 0:
-            pprint("List of failed monitors: ")
-            print('\n'.join(['Name: {0:_<15} Id: {1}'.format(k,v) for k,v in failed_monitors.items()]))
-        else:
-            logging.info("All Monitors Successfully Created")
+    if len(failed_monitors.keys()) > 0:
+        pprint("List of failed monitors: ")
+        print('\n'.join(['Name: {0:<15} Id: {1}'.format(k,v) for k,v in failed_monitors.items()]))
+    else:
+        logging.info("All Monitors Successfully Created")
 
 
 
