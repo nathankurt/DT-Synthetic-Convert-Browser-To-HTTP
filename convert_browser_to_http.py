@@ -572,6 +572,7 @@ if args.list:
     
 
 else:
+    failed_monitors = {}
     #ids to put into after http monitor created that way can reference later. 
     b_monitor_http_monitor_dict = {}
     browser_monitor_ids = []
@@ -656,7 +657,7 @@ else:
         for event in monitor_obj.b_json["script"]["events"]:
             #check if authentication in event, if it is, make sure it's not webform
             if "authentication" in event:
-                if event["authentication"]["type"] is "webform":
+                if event["authentication"]["type"] == "webform":
                     logging.warn("Authentication Type is Webform, Skipping Monitor")
                     break
 
@@ -677,6 +678,11 @@ else:
 
 
             response = monitor_obj.create_http()
+            if response.status_code >= 400:
+                logging.error(f"can't post monitor Name: {monitor_obj.b_json['name']}, ID: {b_id}")
+                failed_monitors.update({monitor_obj.b_json['name']:b_id})
+                continue
+            
 
             #Checks if they want to overwrite, if they don't 
             if args.overwrite and response.status_code < 400:
@@ -700,6 +706,8 @@ else:
                 assert disable_b_monitor_response.status_code < 400, logging.error(f"Unable to disable browser monitor {b_id} \
                     Error Code: {disable_b_monitor_response.status_code}")
 
+            
+            assert(response.status_code < 400)
             #pprint(response.json())
             http_id = response.json()["entityId"]
             logging.debug("HTTP ID: " + http_id)
@@ -725,6 +733,13 @@ else:
                     logging.info(f"Adding HTTP Monitor {b_monitor_http_monitor_dict[m_id]} to Maintenence Window {item}")
                     #Put Request for Window
                     #pprint(m_window_obj.window_json)
+
+        if len(failed_monitors.keys()) > 0:
+            pprint("List of failed monitors: ")
+            print('\n'.join(['{0}{1}'.format(k,v) for k,v in failed_monitors.items()]))
+        else:
+            logging.info("All Monitors Successfully Created")
+
 
 
 
