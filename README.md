@@ -1,8 +1,9 @@
 # Convert Dynatrace Browser Monitors to Public HTTP Monitor
 
+This is a program used to convert Dynatrace Synthetic Browser Monitors that are just used for availability monitoring to 
 
 ```
-usage: convert_browser_to_http.py [-h] [-q] [-l] [--convert_disabled]
+usage: convert_browser_to_http.py [-h] [-l] [--convert_disabled]
                                   [--location LOCATION [LOCATION ...]]
                                   [--overwrite] [--exclude-tag EXCLUDE_TAG]
                                   [--include_tag INCLUDE_TAG] [-f FREQUENCY]
@@ -20,7 +21,6 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  -q, --quiet           no output printed to the terminal
   -l, --list            list the management zone names and IDs, as well as
                         HTTP location names and IDs
   --convert_disabled    also includes values that are disabled

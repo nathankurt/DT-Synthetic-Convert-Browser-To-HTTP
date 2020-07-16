@@ -36,7 +36,8 @@ parser.add_argument("url", help="tenant url with SaaS format: https://[tenant_ke
 
 parser.add_argument("token", type=str, help="Your API Token generated with access")
 
-parser.add_argument("-q", "--quiet", help="no output printed to the terminal", action="store_true")
+#TODO Maybe Later, but it outputs it to a file anyways so not a huge deal
+#parser.add_argument("-q", "--quiet", help="no output printed to the terminal", action="store_true")
 
 #TODO
 #parser.add_argument("--debug", help="prints better logging message", action="store_true")
@@ -607,7 +608,7 @@ else:
     #TODO Get Overwrite Function Working
     if args.overwrite:  
         already_made_dict = {browser_names[x]:http_names[x + " Now HTTP"] for x in browser_names.keys()}
-        pprint(already_made_dict)
+        #pprint(already_made_dict)
     else:
         #Just ignore the ones that have already been made
         already_made_ls = [browser_names[x] for x in browser_names.keys() if x +" Now HTTP" in http_names.keys()]
@@ -684,7 +685,7 @@ else:
             if args.overwrite and response.status_code < 400:
                 del_api = MakeRequest(args.url, r_id=del_id)
                 del_response = del_api.delete_monitor()
-                pprint(f"Deletion Status Code: {del_response.status_code}")
+                #pprint(f"Deletion Status Code: {del_response.status_code}")
                 #maybe change the assertion stuff eventually
                 assert del_response.status_code < 400, logging.error(f"Unable to delete monitor {del_id}\
                     Error Code: {del_response.status_code}")
@@ -702,7 +703,7 @@ else:
                 assert disable_b_monitor_response.status_code < 400, logging.error(f"Unable to disable browser monitor {b_id} \
                     Error Code: {disable_b_monitor_response.status_code}")
 
-            pprint(response.json())
+            #pprint(response.json())
             http_id = response.json()["entityId"]
             logging.debug("HTTP ID: " + http_id)
             b_monitor_http_monitor_dict.update({b_id:http_id})
@@ -726,7 +727,7 @@ else:
                     m_window_obj.window_json["scope"]["entities"].append(b_monitor_http_monitor_dict[m_id])
                     logging.info(f"Adding HTTP Monitor {b_monitor_http_monitor_dict[m_id]} to Maintenence Window {item}")
                     #Put Request for Window
-                    pprint(m_window_obj.window_json)
+                    #pprint(m_window_obj.window_json)
 
 
 
