@@ -1,6 +1,27 @@
 # Convert Dynatrace Browser Monitors to Public HTTP Monitor
 
-This is a program used to convert Dynatrace Synthetic Browser Monitors that are just used for availability monitoring to 
+This is a program used to convert Dynatrace Synthetic Browser Monitors that are just used for availability monitoring and the only thing stopping them from using HTTP Monitors at the time was that there weren't any public location http monitors at the time. 
+
+That has all changed as of June 2020 for Dynatrace SaaS customers. Now you can use public locations but there isn't an easy way to convert over your browser monitors that were just being used at the time for that purpose. 
+
+## Prerequisites 
+
+* Python Version >= 3.6
+* Requests Module (Found in `requirements.txt` and `Pipfile`)
+
+### Optional 
+
+* Pipenv - Used for Pipfile and virtual environments. 
+
+
+## Usage
+
+* Download requests module with `pip install -r requirements.txt` after going into a virtual environment(or not I'm not your boss)
+
+* You can run this program by running `python convert_browser_to_http.py [url] [api-token] --[options]`
+
+* More details on specifics found below. 
+
 
 ```
 usage: convert_browser_to_http.py [-h] [-l] [--convert_disabled]
@@ -63,3 +84,6 @@ optional arguments:
 
 
 ```
+
+### Examples
+
