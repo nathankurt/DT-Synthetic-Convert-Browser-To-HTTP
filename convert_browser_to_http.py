@@ -23,8 +23,8 @@ class InputError(Exception):
         self.message = message
 
 
-logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', filemode='w', filename="logs/" + datetime.now().strftime('b2http_logfile_%H_%M_%d_%m_%Y.log'), datefmt='%m-%d-%Y %H:%M:%S', level=logging.DEBUG)
-
+#logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', filemode='w', filename="logs/" + datetime.now().strftime('b2http_logfile_%H_%M_%d_%m_%Y.log'), datefmt='%m-%d-%Y %H:%M:%S', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', level=logging.DEBUG)
 
 
 parser = argparse.ArgumentParser(description="Convert Browser Monitors to HTTP Monitors")
