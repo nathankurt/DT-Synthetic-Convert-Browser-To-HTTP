@@ -2,7 +2,13 @@
 
 This is a program used to convert Dynatrace Synthetic Browser Monitors that are just used for availability monitoring and the only thing stopping them from using HTTP Monitors at the time was that there weren't any public location http monitors at the time. 
 
-That has all changed as of June 2020 for Dynatrace SaaS customers. Now you can use public locations but there isn't an easy way to convert over your browser monitors that were just being used at the time for that purpose. 
+That has all changed as of June 2020 for Dynatrace SaaS customers. Now you can use public locations but there isn't an easy way to convert over your browser monitors that were just being used at the time for that purpose as well as transfer things associated with the browser monitor like Maintenence windows etc.
+
+## Use Cases 
+
+* Convert all "blank page" monitors that are really just used for SLAs while changing frequency to make them all more frequent. 
+
+* Open the budget for other things DEM by making pages that aren't fully utilizing browser monitor capabilities into HTTP monitors
 
 ## Prerequisites 
 
@@ -29,7 +35,8 @@ That has all changed as of June 2020 for Dynatrace SaaS customers. Now you can u
 
 
 ```
-usage: convert_browser_to_http.py [-h] [-l] [--convert_disabled]
+usage: convert_browser_to_http.py [-h] [-q | --debug] [-l]
+                                  [--convert_disabled]
                                   [--location LOCATION [LOCATION ...]]
                                   [--overwrite] [--exclude-tag EXCLUDE_TAG]
                                   [--include_tag INCLUDE_TAG] [-f FREQUENCY]
@@ -47,6 +54,8 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  -q, --quiet           no output printed to the terminal
+  --debug               prints better logging message
   -l, --list            list the management zone names and IDs, as well as
                         HTTP location names and IDs
   --convert_disabled    also includes values that are disabled
@@ -86,6 +95,7 @@ optional arguments:
                         Gets a single browser monitor and converts that to an
                         HTTP monitor. Can add multiple Ids by listing with a
                         space inbetween or calling the -s again
+
 
 
 ```
