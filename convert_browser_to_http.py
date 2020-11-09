@@ -376,6 +376,11 @@ class MaintenenceWindow:
     def get_window(self):
         pass
 
+    @PutRequest(endpoint="api/config/v1/maintenanceWindows/", r_id='self.r_id')
+    def update_window(self, monitor_id):
+        self.window_json["scope"]["entities"].append(monitor_id)
+        return self.window_json
+
     def __str__(self):
         return self.get_window().text
 
@@ -792,6 +797,7 @@ else:
                     m_window_obj.window_json["scope"]["entities"].append(b_monitor_http_monitor_dict[m_id])
                     logger.info(f"Adding HTTP Monitor {b_monitor_http_monitor_dict[m_id]} to Maintenence Window {item}")
                     #Put Request for Window
+                    m_window_obj.update_window(b_monitor_http_monitor_dict[m_id])
                     #pprint(m_window_obj.window_json)
 
     if len(failed_monitors.keys()) > 0:
