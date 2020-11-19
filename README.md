@@ -24,8 +24,48 @@ That has all changed as of June 2020 for Dynatrace SaaS customers. Now you can u
 
 * Pipenv - Used for Pipfile and virtual environments. 
 
+## Usage for Converting Timeout 
 
-## Usage
+* You can run this program by running `python change_http_monitors.py [url] [api-token] --[options]`
+
+* Download requests module with `pip install -r requirements.txt` after going into a virtual environment(or not I'm not your boss)
+
+positional arguments:
+  url                   tenant url with SaaS format:
+                        https://[tenant_key].live.dynatrace.com OR Managed:
+                        https://{your-domain}/e/{your-environment-id}
+  token                 Your API Token generated with access
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -q, --quiet           no output printed to the terminal
+  --debug               prints better logging message
+  -l, --list            list the management zone names and IDs, as well as
+                        HTTP location names and IDs
+  --timeout TIMEOUT     Sets the HTTP Monitor Request Timeout between 0 and 60
+  --convert_disabled    also includes values that are disabled
+  
+  --exclude-tag EXCLUDE_TAG
+                        add tags that you want excluded from being transferred
+                        over, each tag you want excluded use the arg again
+  --include_tag INCLUDE_TAG
+                        Add tags that you want included to be transferred over
+                        as well. If you have a management zone listed, that
+                        will take priority and only include things in that
+                        management zone. Multiple tags require multiple args
+                        added. For Example: --include-tag Retail Advisor
+                        --include-tag Retail
+
+  -m MANAGEMENT_ZONE, --management_zone MANAGEMENT_ZONE
+                        Management Zone to select, use the --list feature to
+                        get the MZ IDs if you don't know them already.
+  -s SELECT_MONITOR_ID [SELECT_MONITOR_ID ...], --select_monitor_id SELECT_MONITOR_ID [SELECT_MONITOR_ID ...]
+                        Gets a single browser monitor and converts that to an
+                        HTTP monitor. Can add multiple Ids by listing with a
+                        space inbetween or calling the -s again
+
+
+## Usage for HTTP to Browser
 
 * Download requests module with `pip install -r requirements.txt` after going into a virtual environment(or not I'm not your boss)
 
