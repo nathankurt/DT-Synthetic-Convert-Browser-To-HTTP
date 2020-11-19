@@ -55,8 +55,7 @@ parser.add_argument("--include_tag", help="Add tags that you want included to be
     that will take priority and only include things in that management zone. Multiple tags require multiple args added. \
     For Example: --include-tag Retail Advisor --include-tag Retail", action="append")
 
-parser.add_argument("-f", "--frequency", help="sets the frequency of the new monitors, if not listed it will just use the same times they had from before.\
-     insert number as integer in minutes. values available: 5,10,15,30,60,120,180")
+
 
 
 
@@ -142,20 +141,9 @@ except:
 
 # tenant = args.url
 
-#frequency list that contains possible values for frequencies you can have. 
-frequency_ls = [5,10,15,30,60,120,180]
+
 
 api_token = args.token
-
-#If they select a frequency val, check if input is valid
-if args.frequency:
-
-    try:
-        val = int(args.frequency)
-        assert val in frequency_ls, logger.critical(f"Assertion Error: Frequency must be either {','.join(map(str, frequency_ls))}")
-
-    except TypeError:
-        logger.error("Frequency Input must be an integer in minutes.")
 
     
 
@@ -466,18 +454,35 @@ class HttpMonitor(SyntheticMonitor):
 
 api = MakeRequest(args.url)
 
-failed_monitors = {}
 
-http_monitor_id = api.get_http_monitors_ids()
-if not args.timeout:
-    args.timeout = 60
+if args.list:
+    pprint("\n\nManagement Zones List: ")
+    pprint(api.get_management_zones().json())
+    
+else:
+    failed_monitors = {}
+    if args.select_monitor_id:
+        #Get list of monitors to create and do stuff with
+        #flatten list and combine 
+        browser_monitor_ids = list(chain.from_iterable(args.select_monitor_id))
+    else:
+        http_monitor_id = api.get_http_monitors_ids()
+    if not args.timeout:
+        args.timeout = 60
 
-for http_id in http_monitor_id:
-    http_monitor = HttpMonitor(args.url, http_id)
-    timeout_response = http_monitor.update_timeout(args.timeout)
-    assert timeout_response.status_code < 400, logger.error(f"Unable to update monitor {http_id}\
-        Error Code: {timeout_response.status_code}")
-    logger.info(f"Updated Timeout for {http_monitor.b_name} - {http_id}")
+
+
+    for http_id in http_monitor_id:
+        http_monitor = HttpMonitor(args.url, http_id)
+        if args.exclude_tag: 
+            if any(x in http_monitor.get_tags() for x in args.exclude_tag):
+                continue
+        
+        ## Sets the timeout for the request 
+        timeout_response = http_monitor.update_timeout(args.timeout)
+        assert timeout_response.status_code < 400, logger.error(f"Unable to update monitor {http_id}\
+            Error Code: {timeout_response.status_code}")
+        logger.info(f"Updated Timeout for {http_monitor.b_name} - {http_id}")
 
 
 
