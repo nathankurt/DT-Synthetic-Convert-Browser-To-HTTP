@@ -284,6 +284,12 @@ def list_synthetic_ids(func):
         return ([element['entityId'] for element in func(*args,**kwargs).json()['monitors']])
     return wrapper_list_ids
 
+def list_http_ids(func):
+    @functools.wraps(func)
+    def wrapper_list_ids(*args, **kwargs):
+        return ([element['entityId'] for element in func(*args, **kwargs).json()['monitors'] if element['type'] == "HTTP"])
+    return wrapper_list_ids
+
 def list_synthetic_names(func):
     @functools.wraps(func)
     def wrapper_list_names(*args, **kwargs):
@@ -304,6 +310,10 @@ class MakeRequest(object):
         self.r_id = r_id
 
 
+    @GetRequest(endpoint="api/v1/synthetic/monitors", args=args)
+    def get_monitors(self):
+        pass
+
     #Get request for all browser monitors
     @GetRequest(endpoint="api/v1/synthetic/monitors?type=BROWSER", args=args)
     def get_browser_monitors(self):
@@ -313,6 +323,10 @@ class MakeRequest(object):
     @list_synthetic_ids
     def get_browser_monitors_ids(self):
         return self.get_browser_monitors()
+
+    @list_http_ids
+    def get_http_monitors_ids(self):
+        return self.get_monitors()
 
     #Get management zones names and IDs
     @GetRequest(endpoint="api/config/v1/managementZones")
